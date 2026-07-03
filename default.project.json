@@ -1,0 +1,21 @@
+{
+  "name": "chill-farmarska-hra",
+  "tree": {
+    "$className": "DataModel",
+    "ReplicatedStorage": {
+      "Modules": {
+        "$path": "src/ReplicatedStorage/Modules"
+      },
+      "BuyItem": { "$className": "RemoteEvent" },
+      "RedeemCode": { "$className": "RemoteEvent" },
+      "PlantCrop": { "$className": "RemoteEvent" },
+      "HarvestCrop": { "$className": "RemoteEvent" },
+      "CollectAnimalProduct": { "$className": "RemoteEvent" },
+      "CraftItem": { "$className": "RemoteEvent" },
+      "OpenCrate": { "$className": "RemoteEvent" }
+    },
+    "ServerScriptService": {
+      "$path": "src/ServerScriptService"
+    }
+  }
+}
