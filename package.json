@@ -1,0 +1,9 @@
+{
+  "name": "renux-logger",
+  "version": "1.0.0",
+  "main": "server.js",
+  "dependencies": {
+    "discord.js": "^14.0.0",
+    "express": "^4.18.2"
+  }
+}
