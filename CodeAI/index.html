@@ -289,7 +289,7 @@
       font: inherit;
     }
     #composer-actions { display: flex; flex-direction: column; gap: 5px; }
-    #settings { display: flex; align-items: center; gap: 8px; padding-block-start: 7px; color: var(--muted); font-size: 11px; }
+    #settings { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; padding-block-start: 7px; color: var(--muted); font-size: 11px; }
     #model {
       max-inline-size: 175px;
       block-size: 24px;
@@ -301,6 +301,10 @@
     }
     .thinking { display: inline-flex; align-items: center; gap: 4px; cursor: pointer; white-space: nowrap; }
     .thinking input { accent-color: var(--accent); }
+    .agent-select-wrap { display: inline-flex; align-items: center; gap: 4px; }
+    .agent-select-wrap .icon { color: var(--accent); }
+    .skill-settings { display: grid; gap: 6px; }
+    .skill-settings .button { justify-self: start; }
     #bottom-panel { block-size: 150px; flex: 0 0 150px; display: flex; flex-direction: column; border-block-start: 1px solid var(--line); background: var(--bg); }
     #bottom-panel.collapsed { block-size: 0; flex-basis: 0; border: 0; overflow: hidden; }
     #bottom-tabs { block-size: 32px; flex: 0 0 32px; display: flex; align-items: stretch; gap: 14px; padding: 0 12px; border-block-end: 1px solid var(--line); color: var(--muted); }
@@ -456,6 +460,19 @@
     <symbol id="i-terminal" viewBox="0 0 24 24"><path d="m4 6 6 6-6 6m8 0h8"/></symbol>
     <symbol id="i-chat" viewBox="0 0 24 24"><path d="M20 11.5a7.5 7.5 0 0 1-7.5 7.5H6l-3 2v-6a8 8 0 1 1 17-3.5z"/><path d="M8 10h8M8 14h5"/></symbol>
     <symbol id="i-close" viewBox="0 0 24 24"><path d="m6 6 12 12M18 6 6 18"/></symbol>
+    <symbol id="i-agent-code" viewBox="0 0 24 24"><path d="m8 8-4 4 4 4m8-8 4 4-4 4m-3-10-2 12"/></symbol>
+    <symbol id="i-agent-debug" viewBox="0 0 24 24"><path d="M9 8V6a3 3 0 0 1 6 0v2m-9 4H4m16 0h-2M6 17l2-2m10 2-2-2M6 8l2 2m10-2-2 2M8 8h8v8a4 4 0 0 1-8 0z"/></symbol>
+    <symbol id="i-agent-architecture" viewBox="0 0 24 24"><rect x="9" y="3" width="6" height="5" rx="1"/><rect x="3" y="16" width="6" height="5" rx="1"/><rect x="15" y="16" width="6" height="5" rx="1"/><path d="M12 8v4M6 16v-4h12v4"/></symbol>
+    <symbol id="i-agent-test" viewBox="0 0 24 24"><path d="M9 3h6m-5 0v6l-5 9a2 2 0 0 0 2 3h10a2 2 0 0 0 2-3l-5-9V3m-7 11h12"/><path d="m10 16 1.5 1.5L14 15"/></symbol>
+    <symbol id="i-agent-web" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3a15 15 0 0 1 0 18M12 3a15 15 0 0 0 0 18"/></symbol>
+    <symbol id="i-agent-java" viewBox="0 0 24 24"><path d="M12 3 20 7.5v9L12 21l-8-4.5v-9z"/><path d="m8 9 4-2 4 2v5l-4 2-4-2zM12 7v9m-4-7 4 2 4-2"/></symbol>
+    <symbol id="i-agent-security" viewBox="0 0 24 24"><path d="M12 3 20 6v5c0 5-3.4 8.3-8 10-4.6-1.7-8-5-8-10V6z"/><path d="m8.5 12 2.2 2.2 4.8-5"/></symbol>
+    <symbol id="i-agent-performance" viewBox="0 0 24 24"><path d="M4.5 18a9 9 0 1 1 15 0M12 13l5-5m-8 11h6"/></symbol>
+    <symbol id="i-agent-devops" viewBox="0 0 24 24"><path d="M7 18H6a4 4 0 1 1 1.4-7.8A5 5 0 0 1 17 9a4.5 4.5 0 1 1 1 9h-1"/><path d="m9 15 3 3 3-3m-3 3V9"/></symbol>
+    <symbol id="i-agent-design" viewBox="0 0 24 24"><path d="M12 3a9 9 0 1 0 0 18h1.5a2 2 0 0 0 1.4-3.4 1.5 1.5 0 0 1 1.1-2.6H18a3 3 0 0 0 3-3c0-5-4-9-9-9z"/><circle cx="7.5" cy="11" r="1"/><circle cx="10" cy="7.5" r="1"/><circle cx="15" cy="8" r="1"/></symbol>
+    <symbol id="i-agent-database" viewBox="0 0 24 24"><ellipse cx="12" cy="5" rx="8" ry="3"/><path d="M4 5v14c0 1.7 3.6 3 8 3s8-1.3 8-3V5M4 12c0 1.7 3.6 3 8 3s8-1.3 8-3"/></symbol>
+    <symbol id="i-agent-docs" viewBox="0 0 24 24"><path d="M5 4h10l4 4v12H5zM15 4v5h5M8 13h8m-8 4h8"/></symbol>
+    <symbol id="i-agent-spark" viewBox="0 0 24 24"><path d="m12 3 1.8 5.2L19 10l-5.2 1.8L12 17l-1.8-5.2L5 10l5.2-1.8zM19 16l1 2.5 2.5 1-2.5 1L19 23l-1-2.5-2.5-1 2.5-1z"/></symbol>
   </svg>
   <div id="startup-overlay" role="status" aria-live="polite">
     <div class="startup-card">
@@ -469,7 +486,7 @@
       </div>
       <aside class="startup-log" aria-label="Vývojový přehled">
         <h2>Dev log · poslední úpravy</h2>
-        <section class="dev-log-group"><strong>Přidáno</strong><ul><li>Průvodce nastavením lokálního Qwen a kontrola spojení</li><li>Dovednosti AI a specializované profily agentů</li><li>Náhled navržených změn projektu před použitím</li></ul></section>
+        <section class="dev-log-group"><strong>Přidáno</strong><ul><li>Průvodce nastavením lokálního Qwen a kontrola spojení</li><li>Agenti s vlastními ikonami, popisy a doporučenými dovednostmi</li><li>Náhled navržených změn projektu před použitím</li></ul></section>
         <section class="dev-log-group"><strong>Upraveno</strong><ul><li>Nová značka aplikace, ikony a načítací obrazovka</li><li>Chybová hlášení chatu s konkrétní pomocí pro připojení</li></ul></section>
         <section class="dev-log-group"><strong>Odebráno</strong><ul><li>Neakční hlášení o nedostupném Qwen bez dalšího postupu</li></ul></section>
       </aside>
@@ -605,22 +622,25 @@
         </div>
         <div id="settings">
           <label for="agent-profile">Agent</label>
-          <select id="agent-profile" title="Profil AI agenta">
-            <option value="developer">Vývojář</option>
-            <option value="debugger">Debugger</option>
-            <option value="architect">Architekt</option>
-            <option value="tester">Tester</option>
-            <option value="web">Web vývojář</option>
-            <option value="mod">Java / herní mody</option>
-            <option value="python">Python vývojář</option>
-            <option value="java">Java vývojář</option>
-            <option value="security">Bezpečnostní kontrola</option>
-            <option value="performance">Optimalizace výkonu</option>
-            <option value="devops">DevOps a sestavení</option>
-            <option value="designer">UI / UX návrhář</option>
-            <option value="database">Databáze a API</option>
-            <option value="documentation">Technický spisovatel</option>
-          </select>
+          <span class="agent-select-wrap">
+            <svg class="icon" aria-hidden="true"><use id="agent-profile-icon" href="#i-agent-code"/></svg>
+            <select id="agent-profile" title="Profil AI agenta">
+              <option value="developer">Vývojář</option>
+              <option value="debugger">Debugger</option>
+              <option value="architect">Architekt</option>
+              <option value="tester">Tester</option>
+              <option value="web">Web vývojář</option>
+              <option value="mod">Java / herní mody</option>
+              <option value="python">Python vývojář</option>
+              <option value="java">Java vývojář</option>
+              <option value="security">Bezpečnostní kontrola</option>
+              <option value="performance">Optimalizace výkonu</option>
+              <option value="devops">DevOps a sestavení</option>
+              <option value="designer">UI / UX návrhář</option>
+              <option value="database">Databáze a API</option>
+              <option value="documentation">Technický spisovatel</option>
+            </select>
+          </span>
           <label for="model">Model</label>
           <select id="model" title="Model se ověřuje podle dostupnosti ve vašem Anthropic účtu">
             <option value="claude-sonnet-5-5">Claude Sonnet 5.5</option>
@@ -664,23 +684,26 @@
           <option value="claude-opus-5-5">Claude Opus 5.5 · hlubší řešení</option>
         </select>
       </label>
-      <label for="agent-skills">Dovednosti AI (vyber jednu nebo více)
-        <select id="agent-skills" multiple>
-          <option value="debug">Ladění a hledání příčiny</option>
-          <option value="tests">Návrh a kontrola testů</option>
-          <option value="review">Revize kódu a projektu</option>
-          <option value="security">Bezpečné programování</option>
-          <option value="docs">Dokumentace a vysvětlení</option>
-          <option value="python">Python</option>
-          <option value="java">Java, Gradle a Minecraft modding</option>
-          <option value="performance">Výkon, paměť a CPU</option>
-          <option value="accessibility">Přístupnost a ovládání klávesnicí</option>
-          <option value="api">API a datové kontrakty</option>
-          <option value="minecraft">Minecraft pluginy, mody a resource packy</option>
-          <option value="dependencies">Závislosti a sestavení</option>
-          <option value="file-names">Cesty a názvy generovaných souborů</option>
-        </select>
-      </label>
+      <div class="skill-settings">
+        <label for="agent-skills">Dovednosti AI (vyber jednu nebo více)
+          <select id="agent-skills" multiple>
+            <option value="debug">Ladění a hledání příčiny</option>
+            <option value="tests">Návrh a kontrola testů</option>
+            <option value="review">Revize kódu a projektu</option>
+            <option value="security">Bezpečné programování</option>
+            <option value="docs">Dokumentace a vysvětlení</option>
+            <option value="python">Python</option>
+            <option value="java">Java, Gradle a Minecraft modding</option>
+            <option value="performance">Výkon, paměť a CPU</option>
+            <option value="accessibility">Přístupnost a ovládání klávesnicí</option>
+            <option value="api">API a datové kontrakty</option>
+            <option value="minecraft">Minecraft pluginy, mody a resource packy</option>
+            <option value="dependencies">Závislosti a sestavení</option>
+            <option value="file-names">Cesty a názvy generovaných souborů</option>
+          </select>
+        </label>
+        <button class="button" id="agent-skills-defaults" type="button"><svg class="icon" style="display:inline-block;vertical-align:middle"><use href="#i-agent-spark"/></svg> Doporučené pro agenta</button>
+      </div>
       <div class="side-description">Šetrný režim zkrátí historii a obrázky a ve Windows sníží prioritu místního Qwen serveru, aby počítač mohl obsluhovat ostatní aplikace. Qwen může odpovídat až 15 minut; běh lze zastavit tlačítkem v chatu. Pokud server prioritu nepodporuje nebo PC stále nestíhá, sniž jeho CPU vlákna v LM Studio nebo použij menší model.</div>
       <div class="update-note">
         <strong>Code AI · verze <span id="app-version">načítám…</span></strong>
@@ -729,6 +752,7 @@
     <div id="command-items"></div>
   </div>
   <script src="node_modules/monaco-editor/min/vs/loader.js"></script>
+  <script src="agent-config.js"></script>
   <script>
     const $ = id => document.getElementById(id);
     let ed;
@@ -752,43 +776,32 @@
     const startupStartedAt = Date.now();
     let editorReady = false;
     let providerReady = !window.api;
-    const agentProfiles = {
-      developer: 'Jsi seniorní programátor. Navrhuj kompletní, spustitelná a udržovatelná řešení; nejprve ověř požadavky a upozorni na závislosti.',
-      debugger: 'Jsi zkušený debugger. Nejprve reprodukuj a lokalizuj příčinu, odliš příznaky od kořene problému a navrhni nejmenší bezpečnou opravu s ověřením.',
-      architect: 'Jsi softwarový architekt. Než doporučíš změnu, vysvětli varianty, hranice modulů, data, bezpečnost a náklady; preferuj jednoduchý návrh.',
-      tester: 'Jsi testovací inženýr. Hledej hraniční případy, regresní rizika a reprodukovatelné testy; nepiš testy, které pouze opakují implementaci.',
-      web: 'Jsi seniorní webový vývojář. Vytvářej přístupné responzivní weby s bezpečným HTML, CSS a JavaScriptem a jasným postupem spuštění.',
-      mod: 'Jsi zkušený vývojář Java a herních modů. Nejdřív zjisti hru, verzi Java, loader a API modů; nevymýšlej kompatibilitu. Navrhuj zdrojové soubory a reprodukovatelný Gradle/Maven build.',
-      python: 'Jsi zkušený Python vývojář. Preferuj jasné typy, standardní knihovnu, bezpečnou práci se soubory a reprodukovatelné testy.',
-      java: 'Jsi zkušený Java vývojář. Zohledni cílovou verzi JDK, sestavení Maven/Gradle a uváděj konkrétní kroky ověření.',
-      security: 'Jsi bezpečnostně zaměřený vývojář. Hledej obvyklé chyby v kódu a navrhuj obranné opravy; nepředstírej, že kontrola nahrazuje profesionální audit.',
-      performance: 'Jsi inženýr výkonu. Hledej měřitelná úzká místa CPU, paměti, renderování a I/O; navrhuj malé změny a ověř jejich dopad místo předčasné optimalizace.',
-      devops: 'Jsi DevOps inženýr. Zaměř se na reprodukovatelné buildy, spouštění, logování a nasazení; neodhaluj tajné údaje a ověř příkazy v cílovém prostředí.',
-      designer: 'Jsi UI/UX návrhář a frontend vývojář. Navrhuj konzistentní rozhraní s jasnou hierarchií, přístupností a responzivním chováním; respektuj existující designový systém.',
-      database: 'Jsi inženýr API a databází. Dbej na konzistentní datové kontrakty, validaci, migrace a transakce; nepředpokládej schéma bez ověření.',
-      documentation: 'Jsi technický spisovatel. Piš jasné návody pro uživatele i vývojáře, uváděj předpoklady, přesné příkazy a známá omezení.'
-    };
-    const agentSkills = {
-      debug: 'Při řešení chyby odděl příznak od příčiny a navrhni ověřitelný postup reprodukce.',
-      tests: 'U každé změny zvaž vhodné regresní testy a okrajové případy.',
-      review: 'Při revizi uváděj přesný soubor, dopad a míru jistoty každého zjištění.',
-      security: 'Chraň tajné údaje, validuj vstupy a upozorni na rizika hranic důvěry.',
-      docs: 'Doplň stručný návod pro uživatele a vysvětli důležité předpoklady.',
-      python: 'Používej idiomatický Python a uváděj verzi Pythonu i příkaz pro ověření.',
-      java: 'Uveď požadavky na JDK, build nástroje a verze API; kompatibilitu ověřuj, neodhaduj.',
-      performance: 'Omez zbytečné alokace, kontext, síťové a diskové operace; před závěrem popiš, jak výkon změřit.',
-      accessibility: 'Zajisti popisky, kontrast, fokus, ovládání klávesnicí a sémantické HTML; neodstraňuj přístupnost kvůli vzhledu.',
-      api: 'Definuj vstupy, výstupy, chybové stavy a kompatibilitu API; nikdy nepotlačuj validační chyby.',
-      minecraft: 'Nejdřív identifikuj verzi Minecraftu, loader/API a JDK; pro artefakty uváděj relativní cestu a ověřitelný build.',
-      dependencies: 'Zkontroluj existující build systém a verze závislostí; neupgraduj nesouvisející balíčky a uveď příkaz pro ověření.',
-      'file-names': 'Každý nový nebo celý generovaný soubor pojmenuj přesnou relativní cestou v nadpisu před jeho samostatným blokem kódu.'
-    };
+    const { agentProfiles, agentSkills, agentMetadata, defaultSkillsFor } = window.codeAIAgents;
+    function getAgentProfileId(agentId = localStorage.getItem('agentProfile')) {
+      return Object.hasOwn(agentProfiles, agentId) ? agentId : 'developer';
+    }
+    function updateAgentPresentation() {
+      const agent = agentMetadata[getAgentProfileId($('agent-profile').value)];
+      $('agent-profile-icon').setAttribute('href', `#${agent.icon}`);
+      $('agent-profile').title = agent.description;
+    }
+    function setAgentSkillSelection(skills) {
+      [...$('agent-skills').options].forEach(option => { option.selected = skills.includes(option.value); });
+    }
     function getSavedSkills() {
+      const savedValue = localStorage.getItem('agentSkills');
+      const customValue = localStorage.getItem('agentSkillsCustomized');
+      if (customValue === null && savedValue !== null) {
+        localStorage.setItem('agentSkillsCustomized', 'true');
+      }
+      if (localStorage.getItem('agentSkillsCustomized') !== 'true') {
+        return defaultSkillsFor(getAgentProfileId());
+      }
       try {
-        const saved = JSON.parse(localStorage.getItem('agentSkills') || '["debug","tests","review"]');
-        return Array.isArray(saved) ? saved.filter(skill => Object.hasOwn(agentSkills, skill)) : ['debug', 'tests', 'review'];
+        const saved = JSON.parse(savedValue || '[]');
+        return Array.isArray(saved) ? saved.filter(skill => Object.hasOwn(agentSkills, skill)) : defaultSkillsFor('developer');
       } catch {
-        return ['debug', 'tests', 'review'];
+        return defaultSkillsFor('developer');
       }
     }
     const base = new URL('node_modules/monaco-editor/min', location.href).href;
@@ -803,9 +816,10 @@
     $('qwen-url').value = localStorage.getItem('qwenUrl') || 'http://127.0.0.1:1234';
     $('qwen-model').value = localStorage.getItem('qwenModel') || '';
     $('qwen-economy').checked = localStorage.getItem('qwenEconomy') !== 'false';
-    $('agent-profile').value = localStorage.getItem('agentProfile') || 'developer';
+    $('agent-profile').value = getAgentProfileId();
     const savedSkills = getSavedSkills();
-    [...$('agent-skills').options].forEach(option => { option.selected = savedSkills.includes(option.value); });
+    setAgentSkillSelection(savedSkills);
+    updateAgentPresentation();
     function hideStartup() {
       const overlay = $('startup-overlay');
       if (!overlay || overlay.dataset.done) return;
@@ -2103,9 +2117,13 @@
       localStorage.setItem('qwenModel', $('qwen-model').value.trim());
       localStorage.setItem('qwenEconomy', String($('qwen-economy').checked));
       localStorage.setItem('agentSkills', JSON.stringify([...$('agent-skills').selectedOptions].map(option => option.value)));
+      if (localStorage.getItem('agentSkillsCustomized') !== 'true') {
+        localStorage.setItem('agentSkillsCustomized', 'false');
+      }
       $('model').value = $('profile-model').value;
       if (ed) monaco.editor.setTheme(theme === 'light' ? 'vs' : 'vs-dark');
-      $('agent-profile').value = localStorage.getItem('agentProfile') || 'developer';
+      $('agent-profile').value = getAgentProfileId();
+      updateAgentPresentation();
       document.body.classList.toggle('theme-light', theme === 'light');
       document.body.classList.toggle('theme-github', theme === 'github');
       updateProviderSettings();
@@ -2122,10 +2140,29 @@
       $('profile-model').value = $('model').value;
       localStorage.setItem('model', $('model').value);
     };
-    $('agent-profile').onchange = () => localStorage.setItem('agentProfile', $('agent-profile').value);
+    $('agent-profile').onchange = () => {
+      const agentId = $('agent-profile').value;
+      const agent = agentMetadata[agentId] || agentMetadata.developer;
+      localStorage.setItem('agentProfile', agentId);
+      updateAgentPresentation();
+      if (localStorage.getItem('agentSkillsCustomized') !== 'true') {
+        const skills = defaultSkillsFor(agentId);
+        setAgentSkillSelection(skills);
+        localStorage.setItem('agentSkills', JSON.stringify(skills));
+      }
+      setStatus(`Agent ${$('agent-profile').selectedOptions[0].textContent}: ${agent.description}`);
+    };
     $('agent-skills').onchange = () => {
       localStorage.setItem('agentSkills', JSON.stringify([...$('agent-skills').selectedOptions].map(option => option.value)));
+      localStorage.setItem('agentSkillsCustomized', 'true');
       setStatus('Dovednosti AI uloženy');
+    };
+    $('agent-skills-defaults').onclick = () => {
+      const skills = defaultSkillsFor($('agent-profile').value);
+      setAgentSkillSelection(skills);
+      localStorage.setItem('agentSkills', JSON.stringify(skills));
+      localStorage.setItem('agentSkillsCustomized', 'false');
+      setStatus('Doporučené dovednosti agenta obnoveny');
     };
     $('theme-select').onchange = () => {
       const theme = $('theme-select').value;

@@ -7,7 +7,7 @@
 3. V Code AI otevři Profil a vyber „Qwen lokálně“. Průvodce „Nastavit AI“ nabídne odkaz na [LM Studio](https://lmstudio.ai/download) a [Qwen modely](https://huggingface.co/Qwen).
 4. V LM Studio stáhni Qwen model, otevři Developer / Local Server a spusť OpenAI-compatible server na `http://127.0.0.1:1234`. V Code AI klikni na „Ověřit připojení“; dostupný model se automaticky vybere. Místní model nevyžaduje API klíč, ale potřebuje dostatek paměti a výkonu počítače.
 
-V nastavení lze vybrat specializovaného agenta a jednu nebo více dovedností AI. Při startu se zobrazí načítací obrazovka s aktuálním přehledem změn. Pokud je Qwen server vypnutý, chat nabídne přímý odkaz a postup připojení.
+V chatu lze vybírat ze 14 specializovaných agentů s vlastní ikonou a popisem. Každý agent nabízí doporučené dovednosti, které lze v nastavení obnovit nebo upravit; ruční výběr zůstane zachován i při přepnutí agenta. Při startu se zobrazí načítací obrazovka s aktuálním přehledem změn. Pokud je Qwen server vypnutý, chat nabídne přímý odkaz a postup připojení.
 
 Chaty a jejich historie se ukládají lokálně do uživatelských dat aplikace. Chaty ani přiložené soubory se automaticky nemažou. V nastavení je možné změnit profil, model a barevné schéma.
 
