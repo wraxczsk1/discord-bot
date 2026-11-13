@@ -1,0 +1,44 @@
+{
+  "name": "code-ai",
+  "version": "1.0.1",
+  "description": "Vlastní programátorské IDE s AI",
+  "main": "main.js",
+  "scripts": {
+    "start": "electron .",
+    "test": "node --test",
+    "dist": "electron-builder"
+  },
+  "dependencies": {
+    "electron-updater": "^6.6.2",
+    "monaco-editor": "0.52.2",
+    "yauzl": "^3.2.0"
+  },
+  "devDependencies": {
+    "electron": "^33.0.0",
+    "electron-builder": "^25.0.0"
+  },
+  "build": {
+    "appId": "cz.codeai.app",
+    "productName": "Code AI",
+    "files": [
+      "**/*"
+    ],
+    "publish": [
+      {
+        "provider": "github",
+        "owner": "wraxczsk1",
+        "repo": "discord-bot"
+      }
+    ],
+    "win": {
+      "target": "nsis",
+      "signAndEditExecutable": false
+    },
+    "mac": {
+      "target": "dmg"
+    },
+    "linux": {
+      "target": "AppImage"
+    }
+  }
+}

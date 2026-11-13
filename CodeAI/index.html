@@ -1,0 +1,2143 @@
+<!DOCTYPE html>
+<html lang="cs">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Code AI</title>
+  <style>
+    :root {
+      color-scheme: dark;
+      --bg: #181818;
+      --panel: #1f1f1f;
+      --side: #181818;
+      --raised: #252526;
+      --input: #2a2d2e;
+      --fg: #d4d4d4;
+      --muted: #9d9d9d;
+      --line: #333;
+      --accent: #0078d4;
+      --hover: #2a2d2e;
+      --selected: #37373d;
+      --user: #04395e;
+      --danger: #f48771;
+    }
+    * { box-sizing: border-box; }
+    html, body { block-size: 100%; margin: 0; }
+    body {
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+      background: var(--bg);
+      color: var(--fg);
+      font: 13px/1.5 "Segoe UI", system-ui, sans-serif;
+    }
+    button, select, textarea { font: inherit; }
+    button { color: inherit; }
+    button:focus-visible, select:focus-visible, textarea:focus-visible {
+      outline: 1px solid #75beff;
+      outline-offset: -1px;
+    }
+    #titlebar {
+      block-size: 36px;
+      flex: 0 0 36px;
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      padding: 0 8px;
+      border-block-end: 1px solid #111;
+      background: #181818;
+      color: var(--muted);
+      user-select: none;
+    }
+    .brand { display: flex; flex: 0 0 auto; align-items: center; gap: 8px; color: var(--fg); }
+    .brand-mark { display: grid; inline-size: 23px; block-size: 23px; place-items: center; border: 1px solid #3b82f6; border-radius: 6px; background: linear-gradient(145deg, #133d68, #202735); color: #a7d7ff; }
+    .brand-mark .icon { inline-size: 16px; block-size: 16px; }
+    .menubar { display: flex; align-items: center; gap: 1px; }
+    .menubar button { padding: 3px 6px; border: 0; border-radius: 3px; background: none; color: var(--fg); font-size: 12px; cursor: pointer; }
+    .menubar button:hover { background: var(--hover); }
+    .command-center {
+      inline-size: min(420px, 35vw);
+      block-size: 25px;
+      margin: 0 auto;
+      padding: 2px 9px;
+      border: 1px solid var(--line);
+      border-radius: 5px;
+      background: var(--raised);
+      color: var(--fg);
+      text-align: center;
+    }
+    .title-actions, .icon-actions { display: flex; align-items: center; gap: 5px; }
+    .icon-button {
+      min-inline-size: 28px;
+      block-size: 26px;
+      border: 0;
+      border-radius: 3px;
+      background: transparent;
+      color: var(--muted);
+      cursor: pointer;
+    }
+    .icon-button:hover { background: var(--hover); color: var(--fg); }
+    #main.chat-hidden #ai { display: none; }
+    #main { flex: 1; display: flex; min-block-size: 0; }
+    #activity {
+      inline-size: 48px;
+      flex: 0 0 48px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding-block-start: 5px;
+      border-inline-end: 1px solid var(--line);
+      background: var(--bg);
+    }
+    .activity-button {
+      inline-size: 46px;
+      block-size: 44px;
+      border: 0;
+      border-inline-start: 2px solid transparent;
+      background: transparent;
+      color: var(--muted);
+      font-size: 18px;
+      cursor: pointer;
+    }
+    .activity-button.active { border-inline-start-color: var(--fg); color: var(--fg); }
+    .activity-spacer { flex: 1; }
+    #side {
+      inline-size: 230px;
+      flex: 0 0 230px;
+      display: flex;
+      flex-direction: column;
+      min-inline-size: 170px;
+      border-inline-end: 1px solid var(--line);
+      background: var(--side);
+    }
+    .section-heading {
+      block-size: 36px;
+      flex: 0 0 36px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 12px;
+      color: var(--muted);
+      font-size: 11px;
+      font-weight: 600;
+      letter-spacing: .07em;
+    }
+    #root { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .tree { flex: 1; overflow: auto; padding: 0 0 10px; }
+    .side-view { display: none; flex: 1; min-block-size: 0; flex-direction: column; overflow: auto; }
+    .side-view.active { display: flex; }
+    .side-view input { margin: 8px; padding: 6px; border: 1px solid var(--line); background: var(--raised); color: var(--fg); }
+    .side-description { padding: 10px; color: var(--muted); font-size: 12px; }
+    .side-action { margin: 6px 8px; text-align: start; }
+    .file-row {
+      min-block-size: 24px;
+      padding: 2px 8px;
+      overflow: hidden;
+      cursor: pointer;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+    .file-row:hover { background: var(--hover); }
+    .file-row.active { background: #094771; }
+    #editor-area { flex: 1; display: flex; flex-direction: column; min-inline-size: 0; }
+    #editor-toolbar { display: flex; align-items: center; justify-content: flex-end; gap: 5px; min-block-size: 30px; padding: 2px 8px; border-block-end: 1px solid var(--line); background: var(--bg); }
+    #mon { flex: 1; min-block-size: 0; }
+    #tabs { min-block-size: 36px; display: flex; overflow: auto hidden; background: var(--raised); }
+    .tab {
+      min-inline-size: 100px;
+      max-inline-size: 220px;
+      display: flex;
+      align-items: center;
+      gap: 9px;
+      padding: 0 12px;
+      border-inline-end: 1px solid var(--line);
+      color: var(--muted);
+      cursor: pointer;
+      white-space: nowrap;
+    }
+    .tab span:first-child { overflow: hidden; text-overflow: ellipsis; }
+    .tab.active { border-block-start: 1px solid var(--accent); background: var(--bg); color: var(--fg); }
+    .tab-close { margin-inline-start: auto; padding: 0 3px; border-radius: 3px; }
+    .tab-close:hover { background: #3c3c3c; }
+    #mon { position: relative; flex: 1; min-block-size: 0; }
+    #editor-welcome {
+      position: absolute;
+      z-index: 1;
+      inset: 0;
+      display: none;
+      align-items: center;
+      justify-content: center;
+      background: var(--bg);
+      color: var(--muted);
+      text-align: center;
+    }
+    #ai {
+      inline-size: 420px;
+      flex: 0 1 420px;
+      min-inline-size: 310px;
+      display: flex;
+      flex-direction: column;
+      border-inline-start: 1px solid var(--line);
+      background: var(--panel);
+    }
+    .chat-heading { gap: 8px; }
+    .chat-heading strong { color: var(--fg); font-size: 12px; }
+    #chat-select {
+      inline-size: 100%;
+      min-inline-size: 0;
+      block-size: 28px;
+      padding: 3px 7px;
+      border: 1px solid var(--line);
+      border-radius: 3px;
+      background: var(--raised);
+      color: var(--fg);
+    }
+    .chat-tools { display: flex; gap: 5px; padding: 0 10px 8px; }
+    .chat-tools .icon-button { border: 1px solid var(--line); }
+    #connection-alert { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin: 0 10px 8px; padding: 8px; border: 1px solid #805b27; border-radius: 4px; background: #352a1b; color: #f0d7a8; font-size: 11px; }
+    #connection-alert[hidden] { display: none; }
+    #connection-alert .button { flex: 0 0 auto; }
+    #msgs { flex: 1; overflow: auto; padding: 8px 12px; }
+    .message {
+      margin: 8px 0 14px;
+      padding: 10px 11px;
+      border-radius: 5px;
+      background: #232323;
+      white-space: pre-wrap;
+      overflow-wrap: anywhere;
+    }
+    .message.user { background: var(--user); }
+    .message-label { margin-block-end: 4px; color: #9cdcfe; font-size: 11px; font-weight: 600; }
+    .message.user .message-label { color: #b7dfff; }
+    .message-tools { display: flex; justify-content: flex-end; margin-block-start: 5px; }
+    .message-tools .button { min-block-size: 23px; font-size: 11px; }
+    .message-body { overflow-wrap: anywhere; }
+    .load-older { display: block; margin: 4px auto 10px; }
+    .attachment-label { display: block; margin-block-start: 6px; color: #9cdcfe; font-size: 11px; }
+    .code-block { margin: 8px 0 2px; overflow: hidden; border: 1px solid #3c3c3c; border-radius: 4px; background: #161616; }
+    .code-block pre { max-block-size: 320px; margin: 0; padding: 9px; overflow: auto; font: 12px/1.5 Consolas, monospace; }
+    .code-block button { margin: 0 8px 8px; }
+    .quick-actions { display: flex; flex-wrap: wrap; gap: 5px; padding: 5px 10px 8px; border-block-start: 1px solid var(--line); }
+    .button {
+      min-block-size: 27px;
+      padding: 3px 9px;
+      border: 1px solid var(--line);
+      border-radius: 3px;
+      background: var(--raised);
+      color: var(--fg);
+      cursor: pointer;
+    }
+    .button:hover { background: #333; }
+    .button.primary { border-color: var(--accent); background: var(--accent); color: #fff; }
+    .button.primary:hover { background: #1489e0; }
+    .button:disabled { opacity: .55; cursor: default; }
+    .project-proposal { display: grid; gap: 7px; margin-block-start: 10px; padding: 10px; border: 1px solid var(--line); border-radius: 5px; background: var(--surface); }
+    .project-proposal .button { justify-self: start; }
+    #change-preview { box-sizing: border-box; inline-size: 100%; min-block-size: 280px; max-block-size: 55vh; resize: vertical; padding: 9px; border: 1px solid var(--line); background: var(--editor); color: var(--text); font: 12px/1.5 Consolas, monospace; }
+    #attachment-list { display: flex; flex-wrap: wrap; gap: 5px; max-block-size: 90px; overflow: auto; padding: 0 10px 7px; }
+    .attachment-chip {
+      max-inline-size: 100%;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 3px 6px;
+      border: 1px solid var(--line);
+      border-radius: 3px;
+      background: var(--raised);
+      color: var(--fg);
+      font-size: 11px;
+    }
+    .attachment-chip span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .attachment-chip button { border: 0; background: none; color: var(--muted); cursor: pointer; }
+    .drop-target { outline: 1px dashed var(--accent); outline-offset: -3px; }
+    #composer { padding: 8px 10px 10px; border-block-start: 1px solid var(--line); }
+    #edit-mode { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-block-end: 6px; padding: 5px 8px; border: 1px solid var(--accent); border-radius: 4px; color: var(--fg); font-size: 11px; }
+    #edit-mode[hidden] { display: none; }
+    #composer-row { display: flex; align-items: flex-end; gap: 6px; }
+    #q {
+      flex: 1;
+      min-inline-size: 0;
+      min-block-size: 72px;
+      max-block-size: 240px;
+      padding: 8px;
+      resize: vertical;
+      border: 1px solid #555;
+      border-radius: 4px;
+      background: var(--input);
+      color: var(--fg);
+      font: inherit;
+    }
+    #composer-actions { display: flex; flex-direction: column; gap: 5px; }
+    #settings { display: flex; align-items: center; gap: 8px; padding-block-start: 7px; color: var(--muted); font-size: 11px; }
+    #model {
+      max-inline-size: 175px;
+      block-size: 24px;
+      border: 1px solid var(--line);
+      border-radius: 3px;
+      background: var(--raised);
+      color: var(--fg);
+      font-size: 11px;
+    }
+    .thinking { display: inline-flex; align-items: center; gap: 4px; cursor: pointer; white-space: nowrap; }
+    .thinking input { accent-color: var(--accent); }
+    #bottom-panel { block-size: 150px; flex: 0 0 150px; display: flex; flex-direction: column; border-block-start: 1px solid var(--line); background: var(--bg); }
+    #bottom-panel.collapsed { block-size: 0; flex-basis: 0; border: 0; overflow: hidden; }
+    #bottom-tabs { block-size: 32px; flex: 0 0 32px; display: flex; align-items: stretch; gap: 14px; padding: 0 12px; border-block-end: 1px solid var(--line); color: var(--muted); }
+    #bottom-tabs button { padding: 0; border: 0; border-block-end: 1px solid transparent; background: none; color: inherit; font-size: 11px; cursor: pointer; }
+    #bottom-tabs button.active { border-block-end-color: var(--fg); color: var(--fg); }
+    #bottom-content { flex: 1; min-block-size: 0; overflow: auto; padding: 8px 12px; font: 12px/1.5 Consolas, monospace; }
+    #debug-output { white-space: pre-wrap; overflow-wrap: anywhere; }
+    #bottom-actions { display: flex; gap: 5px; margin-inline-start: auto; padding: 2px 0; }
+    #bottom-actions button { padding: 1px 7px; border: 1px solid var(--line); border-radius: 3px; background: var(--raised); color: var(--fg); cursor: pointer; }
+    dialog { inline-size: min(520px, calc(100vw - 32px)); max-block-size: 88vh; overflow: hidden; padding: 0; border: 1px solid #454545; border-radius: 6px; background: var(--panel); color: var(--fg); box-shadow: 0 12px 36px #0009; }
+    dialog::backdrop { background: #0008; }
+    .dialog-head, .dialog-foot { display: flex; align-items: center; justify-content: space-between; padding: 12px 16px; border-block-end: 1px solid var(--line); }
+    .dialog-foot { justify-content: flex-end; gap: 8px; border-block-start: 1px solid var(--line); border-block-end: 0; }
+    .dialog-body { display: grid; gap: 12px; max-block-size: calc(88vh - 110px); overflow: auto; padding: 16px; }
+    .dialog-body label { display: grid; gap: 4px; color: var(--muted); }
+    .dialog-body input, .dialog-body select { padding: 7px; border: 1px solid var(--line); border-radius: 3px; background: var(--raised); color: var(--fg); }
+    .dialog-body select[multiple] { min-block-size: 124px; }
+    .setup-steps { margin: 0; padding-inline-start: 22px; color: var(--muted); }
+    .setup-steps li { margin-block: 6px; }
+    .setup-links { display: flex; flex-wrap: wrap; gap: 7px; }
+    .setup-result { min-block-size: 20px; color: #9cdcfe; }
+    .update-note { padding: 9px; border: 1px solid var(--line); border-radius: 4px; color: var(--muted); }
+    #startup-overlay { position: fixed; z-index: 20; inset: 0; display: grid; place-items: center; background: #101318; color: #e6edf3; transition: opacity .25s ease; }
+    #startup-overlay.done { opacity: 0; pointer-events: none; }
+    .startup-card { inline-size: min(860px, calc(100vw - 32px)); display: grid; grid-template-columns: minmax(0, 1fr) minmax(280px, .8fr); overflow: hidden; border: 1px solid #303947; border-radius: 14px; background: #171c24; box-shadow: 0 24px 80px #0008; }
+    .startup-main { display: flex; flex-direction: column; justify-content: center; min-block-size: 330px; padding: 42px; }
+    .startup-brand { display: flex; align-items: center; gap: 14px; }
+    .startup-brand .brand-mark { inline-size: 52px; block-size: 52px; border-radius: 14px; }
+    .startup-brand .icon { inline-size: 31px; block-size: 31px; }
+    .startup-brand h1 { margin: 0; font-size: 27px; font-weight: 600; }
+    .startup-subtitle { margin: 14px 0 24px; color: #a8b2c1; }
+    .startup-progress { display: flex; align-items: center; gap: 10px; color: #91caff; font-size: 12px; }
+    .startup-spinner { inline-size: 15px; block-size: 15px; border: 2px solid #445367; border-block-start-color: #57aaff; border-radius: 50%; animation: spin .8s linear infinite; }
+    .startup-log { padding: 28px 25px; border-inline-start: 1px solid #303947; background: #12171e; }
+    .startup-log h2 { margin: 0 0 14px; color: #9daaba; font-size: 11px; letter-spacing: .12em; text-transform: uppercase; }
+    .dev-log-group { margin-block-end: 14px; }
+    .dev-log-group strong { display: block; margin-block-end: 4px; color: #d7e5f5; font-size: 12px; }
+    .dev-log-group ul { margin: 0; padding-inline-start: 17px; color: #9daaba; font-size: 11px; }
+    .dev-log-group li { margin-block: 3px; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    @media (max-inline-size: 640px) { .startup-card { grid-template-columns: 1fr; } .startup-main { min-block-size: 220px; padding: 28px; } .startup-log { border-inline-start: 0; border-block-start: 1px solid #303947; } }
+    .profile-button { inline-size: 100%; margin-block-start: 5px; padding: 8px; border: 0; background: none; color: var(--muted); text-align: start; cursor: pointer; }
+    .profile-button:hover { background: var(--hover); color: var(--fg); }
+    #agent-profile { max-inline-size: 130px; }
+    .icon { inline-size: 16px; block-size: 16px; display: block; fill: none; stroke: currentColor; stroke-width: 1.7; stroke-linecap: round; stroke-linejoin: round; }
+    .activity-button .icon { inline-size: 21px; block-size: 21px; }
+    .command-palette {
+      position: fixed;
+      z-index: 20;
+      inset-block-start: 48px;
+      inset-inline-start: 50%;
+      inline-size: min(620px, calc(100vw - 32px));
+      max-block-size: min(480px, 70vh);
+      transform: translateX(-50%);
+      overflow: auto;
+      border: 1px solid #454545;
+      border-radius: 6px;
+      background: var(--panel);
+      box-shadow: 0 12px 40px #0009;
+    }
+    .command-palette[hidden] { display: none; }
+    #command-input { position: sticky; inset-block-start: 0; inline-size: 100%; padding: 11px 13px; border: 0; border-block-end: 1px solid var(--line); background: var(--raised); color: var(--fg); }
+    #command-items { padding: 5px; }
+    .command-item { inline-size: 100%; display: flex; justify-content: space-between; padding: 7px 10px; border: 0; border-radius: 3px; background: none; color: var(--fg); text-align: start; cursor: pointer; }
+    .command-item:hover, .command-item.active { background: var(--selected); }
+    .command-item small { color: var(--muted); }
+    .welcome-card { max-inline-size: 520px; padding: 24px; text-align: start; }
+    .welcome-card h1 { margin: 0 0 6px; color: var(--fg); font-size: 24px; font-weight: 400; }
+    .welcome-logo { display: inline-flex; align-items: center; gap: 9px; margin-block-end: 8px; }
+    .welcome-logo .brand-mark { inline-size: 34px; block-size: 34px; border-radius: 9px; }
+    .welcome-logo .icon { inline-size: 23px; block-size: 23px; }
+    .welcome-card p { margin: 0 0 18px; color: var(--muted); }
+    .welcome-columns { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; }
+    .welcome-columns h2 { color: var(--muted); font-size: 12px; text-transform: uppercase; }
+    .welcome-action { display: block; margin: 6px 0; padding: 0; border: 0; background: transparent; color: #75beff; text-align: start; cursor: pointer; }
+    .chat-welcome { padding: 12px 4px; color: var(--muted); }
+    .chat-welcome strong { display: block; margin-block-end: 4px; color: var(--fg); font-size: 15px; }
+    .chat-suggestion { inline-size: 100%; margin-block-start: 6px; padding: 8px; border: 1px solid var(--line); border-radius: 4px; background: var(--raised); color: var(--fg); text-align: start; cursor: pointer; }
+    .chat-suggestion:hover { border-color: var(--accent); }
+    .source-list { display: flex; flex-wrap: wrap; gap: 6px; margin-block-start: 8px; }
+    .source-list a { color: #75beff; overflow-wrap: anywhere; }
+    .theme-light {
+      color-scheme: light;
+      --bg: #fff;
+      --panel: #f8f8f8;
+      --side: #f3f3f3;
+      --raised: #e8e8e8;
+      --input: #fff;
+      --fg: #333;
+      --muted: #666;
+      --line: #d4d4d4;
+      --accent: #006ab1;
+      --hover: #eaeaea;
+      --selected: #cce5f6;
+      --user: #dceeff;
+    }
+    .theme-github {
+      --bg: #0d1117;
+      --panel: #0d1117;
+      --side: #010409;
+      --raised: #161b22;
+      --input: #0d1117;
+      --fg: #e6edf3;
+      --muted: #8b949e;
+      --line: #30363d;
+      --accent: #238636;
+      --hover: #161b22;
+      --selected: #1f6feb;
+      --user: #12233d;
+    }
+    #sb {
+      block-size: 23px;
+      flex: 0 0 23px;
+      display: flex;
+      justify-content: space-between;
+      padding: 1px 10px;
+      background: #007acc;
+      color: #fff;
+      font-size: 11px;
+    }
+    @media (max-inline-size: 1120px) {
+      #side { inline-size: 190px; flex-basis: 190px; }
+      #ai { inline-size: 360px; flex-basis: 360px; }
+    }
+    @media (max-inline-size: 850px) {
+      #side { inline-size: 42px; min-inline-size: 42px; flex-basis: 42px; }
+      #side .section-heading { padding: 0 7px; }
+      #root, #side .section-heading span:last-child { display: none; }
+      #ai { inline-size: 330px; min-inline-size: 290px; flex-basis: 330px; }
+    }
+  </style>
+</head>
+<body>
+  <svg aria-hidden="true" style="position:absolute;inline-size:0;block-size:0;overflow:hidden">
+    <symbol id="i-logo" viewBox="0 0 24 24"><path d="M12 2.8 20.5 7.7v8.6L12 21.2l-8.5-4.9V7.7z"/><path d="m8 9 2.4 3L8 15m4 0h4"/><circle cx="16.5" cy="8" r="1"/></symbol>
+    <symbol id="i-explorer" viewBox="0 0 24 24"><path d="M3 5.5h7l2 2h9v12H3z"/><path d="M3 9h18"/></symbol>
+    <symbol id="i-search" viewBox="0 0 24 24"><circle cx="10.8" cy="10.8" r="6.8"/><path d="m16 16 5 5"/></symbol>
+    <symbol id="i-git" viewBox="0 0 24 24"><path d="m12 3 9 9-9 9-9-9z"/><path d="M12 7v10M8.5 9.5h7"/></symbol>
+    <symbol id="i-run" viewBox="0 0 24 24"><path d="m8 5 12 7-12 7z"/></symbol>
+    <symbol id="i-extensions" viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></symbol>
+    <symbol id="i-settings" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="m19.4 15 .1.1 1.1 1.8-1.8 3.1-2.1-.6a8 8 0 0 1-1.7 1l-.5 2.1H9.5L9 20.4a8 8 0 0 1-1.7-1l-2.1.6-1.8-3.1 1.1-1.8a8 8 0 0 1 0-2l-1.1-1.8 1.8-3.1 2.1.6a8 8 0 0 1 1.7-1L9.5 5h5l.5 2.1a8 8 0 0 1 1.7 1l2.1-.6 1.8 3.1-1.1 1.8a8 8 0 0 1-.1 2.6z" transform="translate(0 -2) scale(.92)"/></symbol>
+    <symbol id="i-user" viewBox="0 0 24 24"><circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0 1 16 0"/></symbol>
+    <symbol id="i-folder" viewBox="0 0 24 24"><path d="M3 6h7l2 2h9v11H3z"/></symbol>
+    <symbol id="i-key" viewBox="0 0 24 24"><circle cx="8" cy="15" r="5"/><path d="m12 11 8-8 2 2-2 2 2 2-3 3-2-2-3 3"/></symbol>
+    <symbol id="i-plus" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></symbol>
+    <symbol id="i-trash" viewBox="0 0 24 24"><path d="M4 7h16M10 11v6m4-6v6M6 7l1 14h10l1-14M9 7V4h6v3"/></symbol>
+    <symbol id="i-clear" viewBox="0 0 24 24"><path d="M4 7h16v13H4zM8 4h8M9 11v5m6-5v5"/></symbol>
+    <symbol id="i-attach" viewBox="0 0 24 24"><path d="m8 12 7-7a4 4 0 0 1 6 6l-9 9a6 6 0 0 1-9-9l8-8"/></symbol>
+    <symbol id="i-link" viewBox="0 0 24 24"><path d="M10 13a5 5 0 0 0 7.1 0l3-3A5 5 0 0 0 13 3l-1.7 1.7M14 11a5 5 0 0 0-7.1 0l-3 3A5 5 0 0 0 11 21l1.7-1.7"/></symbol>
+    <symbol id="i-send" viewBox="0 0 24 24"><path d="m22 2-7 20-4-9-9-4zM22 2 11 13"/></symbol>
+    <symbol id="i-terminal" viewBox="0 0 24 24"><path d="m4 6 6 6-6 6m8 0h8"/></symbol>
+    <symbol id="i-chat" viewBox="0 0 24 24"><path d="M20 11.5a7.5 7.5 0 0 1-7.5 7.5H6l-3 2v-6a8 8 0 1 1 17-3.5z"/><path d="M8 10h8M8 14h5"/></symbol>
+    <symbol id="i-close" viewBox="0 0 24 24"><path d="m6 6 12 12M18 6 6 18"/></symbol>
+  </svg>
+  <div id="startup-overlay" role="status" aria-live="polite">
+    <div class="startup-card">
+      <div class="startup-main">
+        <div class="startup-brand">
+          <span class="brand-mark"><svg class="icon"><use href="#i-logo"/></svg></span>
+          <h1>Code AI</h1>
+        </div>
+        <p class="startup-subtitle">Lokální vývojové prostředí s AI asistencí</p>
+        <div class="startup-progress"><span class="startup-spinner"></span><span id="startup-status">Načítám editor a připojení AI…</span></div>
+      </div>
+      <aside class="startup-log" aria-label="Vývojový přehled">
+        <h2>Dev log · poslední úpravy</h2>
+        <section class="dev-log-group"><strong>Přidáno</strong><ul><li>Průvodce nastavením lokálního Qwen a kontrola spojení</li><li>Dovednosti AI a specializované profily agentů</li><li>Náhled navržených změn projektu před použitím</li></ul></section>
+        <section class="dev-log-group"><strong>Upraveno</strong><ul><li>Nová značka aplikace, ikony a načítací obrazovka</li><li>Chybová hlášení chatu s konkrétní pomocí pro připojení</li></ul></section>
+        <section class="dev-log-group"><strong>Odebráno</strong><ul><li>Neakční hlášení o nedostupném Qwen bez dalšího postupu</li></ul></section>
+      </aside>
+    </div>
+  </div>
+  <div id="titlebar">
+    <div class="brand"><span class="brand-mark"><svg class="icon"><use href="#i-logo"/></svg></span><strong>Code AI</strong></div>
+    <nav class="menubar" aria-label="Menu">
+      <button id="menu-file">Soubor</button><button id="menu-edit">Upravit</button>
+      <button id="menu-view">Zobrazení</button><button id="menu-chat">Chat</button><button id="menu-run">Spustit</button>
+      <button id="menu-help">Nápověda</button>
+    </nav>
+    <input id="command-center" class="command-center" placeholder="Hledat soubory a příkazy  Ctrl+P" aria-label="Rychlé hledání">
+    <div class="title-actions">
+      <button class="icon-button" id="chat-open" title="Zobrazit chat" aria-label="Zobrazit chat"><svg class="icon"><use href="#i-chat"/></svg></button>
+      <button class="icon-button" id="profile-open" title="Profil a nastavení" aria-label="Profil a nastavení"><svg class="icon"><use href="#i-user"/></svg></button>
+      <button class="icon-button" id="key" title="Nastavit Anthropic API klíč" aria-label="API klíč"><svg class="icon"><use href="#i-key"/></svg></button>
+    </div>
+  </div>
+  <div id="main">
+    <nav id="activity" aria-label="Aktivity">
+      <button class="activity-button active" data-view="explorer" title="Průzkumník" aria-label="Průzkumník"><svg class="icon"><use href="#i-explorer"/></svg></button>
+      <button class="activity-button" data-view="search" title="Hledat v projektu" aria-label="Hledat"><svg class="icon"><use href="#i-search"/></svg></button>
+      <button class="activity-button" data-view="source" title="Správa zdrojového kódu" aria-label="Zdrojový kód"><svg class="icon"><use href="#i-git"/></svg></button>
+      <button class="activity-button" data-view="debug" title="Spuštění a ladění" aria-label="Ladění"><svg class="icon"><use href="#i-run"/></svg></button>
+      <button class="activity-button" data-view="extensions" title="Rozšíření" aria-label="Rozšíření"><svg class="icon"><use href="#i-extensions"/></svg></button>
+      <div class="activity-spacer"></div>
+      <button class="activity-button" id="profile-activity" title="Profil a nastavení" aria-label="Nastavení"><svg class="icon"><use href="#i-settings"/></svg></button>
+    </nav>
+    <aside id="side">
+      <div class="section-heading"><span id="side-title">PRŮZKUMNÍK</span><span class="icon-actions"><button class="icon-button" id="new-file" title="Nový soubor" aria-label="Nový soubor">＋</button><button class="icon-button" id="new-folder" title="Nová složka" aria-label="Nová složka">▱</button><button class="icon-button" id="open" title="Otevřít složku projektu" aria-label="Otevřít složku"><svg class="icon"><use href="#i-folder"/></svg></button></span></div>
+      <div id="tree" class="tree side-view active"><div class="side-description">Žádná složka není otevřená.<br><br><button class="welcome-action" id="welcome-open">Otevřít složku…</button></div></div>
+      <div id="search-view" class="side-view">
+        <input id="project-search" placeholder="Hledat soubory…">
+        <div id="search-results" class="tree"></div>
+      </div>
+      <div id="source-view" class="side-view">
+        <div class="side-description">GIT / SPRÁVA ZDROJOVÉHO KÓDU</div>
+        <div id="source-status" class="side-description">Otevři složku Git projektu.</div>
+        <button class="button side-action" id="refresh-git">↻ Obnovit stav</button>
+      </div>
+      <div id="debug-view" class="side-view">
+        <div class="side-description">SPUSTIT A LADIT</div>
+        <button class="button side-action" id="run-file">▷ Spustit aktuální soubor</button>
+        <button class="button side-action" id="stop-file">■ Zastavit proces</button>
+        <div class="side-description">Podporováno: JavaScript přes Node.js a Python. Výstup najdeš v panelu dole.</div>
+      </div>
+      <div id="extensions-view" class="side-view">
+        <div class="side-description">EDITOR A ROZŠÍŘENÍ</div>
+        <div class="side-description">Monaco Editor · doplňování, zvýraznění syntaxe, hledání a navigace v kódu.</div>
+        <button class="button side-action" id="open-settings">Otevřít nastavení</button>
+      </div>
+    </aside>
+    <section id="editor-area" aria-label="Editor">
+      <div id="tabs"></div>
+      <div id="editor-toolbar">
+        <button class="button" id="toggle-panel" title="Zobrazit nebo skrýt panel">Terminál / ladění</button>
+        <button class="button" id="run-toolbar">▷ Spustit</button>
+      </div>
+      <div id="mon"><div id="editor-welcome">
+        <div class="welcome-card">
+          <div class="welcome-logo"><span class="brand-mark"><svg class="icon"><use href="#i-logo"/></svg></span><h1>Code AI</h1></div>
+          <p>Programuj, hledej v projektu a ptej se AI — vše v jednom pracovním prostoru.</p>
+          <div class="welcome-columns">
+            <section><h2>Začít</h2>
+              <button class="welcome-action" id="welcome-folder">Otevřít složku projektu…</button>
+              <button class="welcome-action" id="welcome-command">Otevřít příkazovou paletu</button>
+              <button class="welcome-action" id="welcome-settings">Nastavit profil a model</button>
+            </section>
+            <section><h2>Nedávné projekty</h2><div id="recent-projects">Zatím žádné nedávné projekty</div></section>
+          </div>
+        </div>
+      </div></div>
+      <section id="bottom-panel" class="collapsed">
+        <div id="bottom-tabs">
+          <button class="active" data-panel="terminal">TERMINÁL</button>
+          <button data-panel="problems">PROBLÉMY</button>
+          <button data-panel="output">VÝSTUP</button>
+          <button data-panel="debug-console">DEBUG KONZOLE</button>
+          <span id="bottom-actions">
+            <button id="run-panel">▷ Spustit soubor</button><button id="stop-panel">■ Zastavit</button>
+            <button id="hide-panel" title="Skrýt panel" aria-label="Skrýt panel"><svg class="icon"><use href="#i-close"/></svg></button>
+          </span>
+        </div>
+        <div id="bottom-content"><div id="debug-output">Výstup spuštěného programu se zobrazí zde.</div></div>
+      </section>
+    </section>
+    <aside id="ai" aria-label="AI chat">
+      <div class="section-heading chat-heading">
+        <strong>CHAT</strong>
+        <div class="icon-actions">
+          <button class="icon-button" id="new-chat" title="Nový chat" aria-label="Nový chat"><svg class="icon"><use href="#i-plus"/></svg></button>
+          <button class="icon-button" id="delete-chat" title="Smazat chat" aria-label="Smazat chat"><svg class="icon"><use href="#i-trash"/></svg></button>
+          <button class="icon-button" id="clear-chat" title="Vymazat zprávy" aria-label="Vymazat zprávy"><svg class="icon"><use href="#i-clear"/></svg></button>
+          <button class="icon-button" id="chat-close" title="Zavřít chat" aria-label="Zavřít chat"><svg class="icon"><use href="#i-close"/></svg></button>
+        </div>
+      </div>
+      <div class="chat-tools"><select id="chat-select" aria-label="Uložené chaty"></select></div>
+      <div id="connection-alert" hidden><span id="connection-alert-text">Lokální Qwen není připojen.</span><button class="button" id="open-qwen-setup">Nastavit AI</button></div>
+      <div id="msgs" aria-live="polite"></div>
+      <div class="quick-actions">
+        <button class="button" data-p="Vysvětli aktuální soubor nebo vybraný kód. Uveď nejasnosti a konkrétní příklady.">Vysvětli</button>
+        <button class="button" data-p="Proveď pečlivou kontrolu aktuálního souboru, uveď chyby a navrhni opravu.">Zkontroluj</button>
+        <button class="button" data-p="Navrhni bezpečný a čitelný refaktoring aktuálního souboru.">Refaktoruj</button>
+        <button class="button" data-p="Navrhni smysluplné testy pro aktuální soubor.">Testy</button>
+        <button class="button" id="review-project">Revize projektu</button>
+        <button class="button" id="edit-project">Navrhnout úpravy projektu</button>
+      </div>
+      <div id="attachment-list"></div>
+      <div id="composer">
+        <div id="edit-mode" hidden><span>Upravuješ odeslanou zprávu; odpovědi za ní budou nahrazeny.</span><button class="button" id="cancel-edit">Zrušit úpravu</button></div>
+        <div id="composer-row">
+          <textarea id="q" placeholder="Napiš otázku… (Enter odešle, Shift+Enter nový řádek)" aria-label="Zpráva"></textarea>
+          <div id="composer-actions">
+            <button class="button" id="attach" title="Připojit soubory až do 10 GB"><svg class="icon" style="display:inline-block;vertical-align:middle"><use href="#i-attach"/></svg> Soubor</button>
+            <button class="button" id="attach-folder" title="Připojit složku"><svg class="icon" style="display:inline-block;vertical-align:middle"><use href="#i-folder"/></svg> Složka</button>
+            <button class="button" id="attach-link" title="Připojit odkaz"><svg class="icon" style="display:inline-block;vertical-align:middle"><use href="#i-link"/></svg> Odkaz</button>
+            <button class="button primary" id="go"><svg class="icon" style="display:inline-block;vertical-align:middle"><use href="#i-send"/></svg> <span id="go-label">Odeslat</span></button>
+          </div>
+        </div>
+        <div id="settings">
+          <label for="agent-profile">Agent</label>
+          <select id="agent-profile" title="Profil AI agenta">
+            <option value="developer">Vývojář</option>
+            <option value="debugger">Debugger</option>
+            <option value="architect">Architekt</option>
+            <option value="tester">Tester</option>
+            <option value="web">Web vývojář</option>
+            <option value="mod">Java / herní mody</option>
+            <option value="python">Python vývojář</option>
+            <option value="java">Java vývojář</option>
+            <option value="security">Bezpečnostní kontrola</option>
+          </select>
+          <label for="model">Model</label>
+          <select id="model" title="Model se ověřuje podle dostupnosti ve vašem Anthropic účtu">
+            <option value="claude-sonnet-5-5">Claude Sonnet 5.5</option>
+            <option value="claude-opus-5-5">Claude Opus 5.5</option>
+          </select>
+          <label class="thinking"><input id="thinking" type="checkbox"> Hlubší uvažování</label>
+          <label class="thinking"><input id="web-search" type="checkbox" checked> Web / zdroje</label>
+        </div>
+      </div>
+    </aside>
+  </div>
+  <div id="sb"><span id="sl">Ln 1, Col 1</span><span id="ss">Chaty se ukládají do tohoto zařízení</span></div>
+  <dialog id="settings-dialog">
+    <div class="dialog-head"><strong>Profil a nastavení</strong><button class="icon-button" id="settings-close" aria-label="Zavřít">×</button></div>
+    <div class="dialog-body">
+      <label>Jméno profilu<input id="profile-name" maxlength="40" placeholder="Vývojář"></label>
+      <label>Poskytovatel AI
+        <select id="provider-select">
+          <option value="anthropic">Anthropic API · vyžaduje API klíč</option>
+          <option value="qwen">Qwen lokálně · bez API klíče</option>
+        </select>
+      </label>
+      <label id="qwen-url-row">Lokální Qwen server<input id="qwen-url" value="http://127.0.0.1:1234" placeholder="http://127.0.0.1:1234"></label>
+      <label id="qwen-model-row">ID modelu Qwen<input id="qwen-model" placeholder="Automaticky z lokálního serveru"></label>
+      <div class="setup-links">
+        <button class="button" id="qwen-download">Stáhnout LM Studio</button>
+        <button class="button" id="qwen-model-library">Najít Qwen model</button>
+        <button class="button" id="qwen-check">Ověřit připojení</button>
+      </div>
+      <label>Barevné schéma
+        <select id="theme-select">
+          <option value="dark">VS Code Dark Modern</option>
+          <option value="github">GitHub Dark</option>
+          <option value="light">VS Code Light Modern</option>
+        </select>
+      </label>
+      <label>Model AI
+        <select id="profile-model">
+          <option value="claude-sonnet-5-5">Claude Sonnet 5.5 · rychlý a schopný</option>
+          <option value="claude-opus-5-5">Claude Opus 5.5 · hlubší řešení</option>
+        </select>
+      </label>
+      <label for="agent-skills">Dovednosti AI (vyber jednu nebo více)
+        <select id="agent-skills" multiple>
+          <option value="debug">Ladění a hledání příčiny</option>
+          <option value="tests">Návrh a kontrola testů</option>
+          <option value="review">Revize kódu a projektu</option>
+          <option value="security">Bezpečné programování</option>
+          <option value="docs">Dokumentace a vysvětlení</option>
+          <option value="python">Python</option>
+          <option value="java">Java, Gradle a Minecraft modding</option>
+        </select>
+      </label>
+      <div class="side-description">Qwen běží lokálně. Stáhni aplikaci LM Studio, stáhni v ní Qwen model a v záložce Developer spusť Local Server na adrese uvedené výše. Podrobný postup otevře tlačítko „Nastavit AI“ u chatu.</div>
+      <div class="update-note">
+        <strong>Code AI · verze <span id="app-version">načítám…</span></strong>
+        <div>Instalátor pro Windows vytvoříš příkazem <code>npm run dist</code>.</div>
+        <div id="update-status">Automatické aktualizace používají veřejné GitHub Releases.</div>
+        <div class="setup-links">
+          <button class="button" id="check-app-updates">Zkontrolovat aktualizace</button>
+          <button class="button primary" id="install-app-update" hidden>Nainstalovat a restartovat</button>
+          <button class="button" id="open-app-releases">Stránka vydání</button>
+        </div>
+      </div>
+    </div>
+    <div class="dialog-foot"><button class="button" id="settings-cancel">Zrušit</button><button class="button primary" id="settings-save">Uložit</button></div>
+  </dialog>
+  <dialog id="qwen-setup-dialog">
+    <div class="dialog-head"><strong>Připojení lokálního Qwen</strong><button class="icon-button" id="qwen-setup-close" aria-label="Zavřít">×</button></div>
+    <div class="dialog-body">
+      <p>Chat potřebuje spuštěný modelový server. Nastavení je zdarma, ale Qwen se musí stáhnout do počítače a jeho rychlost závisí na paměti a grafické kartě.</p>
+      <ol class="setup-steps">
+        <li>Nainstaluj <strong>LM Studio</strong>.</li>
+        <li>V aplikaci vyhledej a stáhni model Qwen (např. menší Qwen 3 8B GGUF).</li>
+        <li>Otevři Developer / Local Server, nastav port <code>1234</code> a spusť server.</li>
+        <li>V Code AI ponech adresu <code>http://127.0.0.1:1234</code> a klikni na ověření.</li>
+      </ol>
+      <div class="setup-links">
+        <button class="button primary" id="setup-download-lm">Stáhnout LM Studio</button>
+        <button class="button" id="setup-qwen-models">Qwen modely</button>
+        <button class="button" id="setup-open-settings">Nastavení připojení</button>
+      </div>
+      <div id="qwen-setup-result" class="setup-result" role="status"></div>
+    </div>
+    <div class="dialog-foot"><button class="button" id="qwen-setup-done">Hotovo</button></div>
+  </dialog>
+  <dialog id="changes-dialog">
+    <div class="dialog-head"><strong>Kontrola návrhu změn</strong><button class="icon-button" id="changes-close" aria-label="Zavřít">×</button></div>
+    <div class="dialog-body">
+      <label for="change-file">Soubor k náhledu</label>
+      <select id="change-file"></select>
+      <textarea id="change-preview" readonly aria-label="Náhled obsahu souboru"></textarea>
+      <div class="side-description">Změny se zapíší až po potvrzení. Existující soubory budou přepsány; návrh je omezen na složku otevřeného projektu.</div>
+    </div>
+    <div class="dialog-foot"><button class="button" id="changes-cancel">Zrušit</button><button class="button primary" id="changes-apply">Použít změny</button></div>
+  </dialog>
+  <div id="command-palette" class="command-palette" hidden>
+    <input id="command-input" placeholder="Zadej příkaz nebo název souboru…" autocomplete="off">
+    <div id="command-items"></div>
+  </div>
+  <script src="node_modules/monaco-editor/min/vs/loader.js"></script>
+  <script>
+    const $ = id => document.getElementById(id);
+    let ed;
+    let root = null;
+    let selectedDirectory = null;
+    let opened = [];
+    let currentFile = null;
+    let chats = [];
+    let activeChat = null;
+    let pendingAttachments = [];
+    let pendingProjectChanges = null;
+    let busy = false;
+    let editingMessage = null;
+    let queuedChatRequests = [];
+    let renderedStart = 0;
+    const RENDER_BATCH_SIZE = 50;
+    const MAX_RENDERED_MESSAGES = 100;
+    let profileName = localStorage.getItem('profileName') || 'Vývojář';
+    let qwenUnavailable = false;
+    const startupStartedAt = Date.now();
+    let editorReady = false;
+    let providerReady = !window.api;
+    const agentProfiles = {
+      developer: 'Jsi seniorní programátor. Navrhuj kompletní, spustitelná a udržovatelná řešení; nejprve ověř požadavky a upozorni na závislosti.',
+      debugger: 'Jsi zkušený debugger. Nejprve reprodukuj a lokalizuj příčinu, odliš příznaky od kořene problému a navrhni nejmenší bezpečnou opravu s ověřením.',
+      architect: 'Jsi softwarový architekt. Než doporučíš změnu, vysvětli varianty, hranice modulů, data, bezpečnost a náklady; preferuj jednoduchý návrh.',
+      tester: 'Jsi testovací inženýr. Hledej hraniční případy, regresní rizika a reprodukovatelné testy; nepiš testy, které pouze opakují implementaci.',
+      web: 'Jsi seniorní webový vývojář. Vytvářej přístupné responzivní weby s bezpečným HTML, CSS a JavaScriptem a jasným postupem spuštění.',
+      mod: 'Jsi zkušený vývojář Java a herních modů. Nejdřív zjisti hru, verzi Java, loader a API modů; nevymýšlej kompatibilitu. Navrhuj zdrojové soubory a reprodukovatelný Gradle/Maven build.',
+      python: 'Jsi zkušený Python vývojář. Preferuj jasné typy, standardní knihovnu, bezpečnou práci se soubory a reprodukovatelné testy.',
+      java: 'Jsi zkušený Java vývojář. Zohledni cílovou verzi JDK, sestavení Maven/Gradle a uváděj konkrétní kroky ověření.',
+      security: 'Jsi bezpečnostně zaměřený vývojář. Hledej obvyklé chyby v kódu a navrhuj obranné opravy; nepředstírej, že kontrola nahrazuje profesionální audit.'
+    };
+    const agentSkills = {
+      debug: 'Při řešení chyby odděl příznak od příčiny a navrhni ověřitelný postup reprodukce.',
+      tests: 'U každé změny zvaž vhodné regresní testy a okrajové případy.',
+      review: 'Při revizi uváděj přesný soubor, dopad a míru jistoty každého zjištění.',
+      security: 'Chraň tajné údaje, validuj vstupy a upozorni na rizika hranic důvěry.',
+      docs: 'Doplň stručný návod pro uživatele a vysvětli důležité předpoklady.',
+      python: 'Používej idiomatický Python a uváděj verzi Pythonu i příkaz pro ověření.',
+      java: 'Uveď požadavky na JDK, build nástroje a verze API; kompatibilitu ověřuj, neodhaduj.'
+    };
+    function getSavedSkills() {
+      try {
+        const saved = JSON.parse(localStorage.getItem('agentSkills') || '["debug","tests","review"]');
+        return Array.isArray(saved) ? saved.filter(skill => Object.hasOwn(agentSkills, skill)) : ['debug', 'tests', 'review'];
+      } catch {
+        return ['debug', 'tests', 'review'];
+      }
+    }
+    const base = new URL('node_modules/monaco-editor/min', location.href).href;
+    const savedTheme = localStorage.getItem('theme') || 'dark';
+    document.body.classList.toggle('theme-light', savedTheme === 'light');
+    document.body.classList.toggle('theme-github', savedTheme === 'github');
+    $('theme-select').value = savedTheme;
+    $('profile-name').value = profileName;
+    $('profile-model').value = localStorage.getItem('model') || 'claude-sonnet-5-5';
+    $('model').value = $('profile-model').value;
+    $('provider-select').value = localStorage.getItem('provider') || 'qwen';
+    $('qwen-url').value = localStorage.getItem('qwenUrl') || 'http://127.0.0.1:1234';
+    $('qwen-model').value = localStorage.getItem('qwenModel') || '';
+    $('agent-profile').value = localStorage.getItem('agentProfile') || 'developer';
+    const savedSkills = getSavedSkills();
+    [...$('agent-skills').options].forEach(option => { option.selected = savedSkills.includes(option.value); });
+    function hideStartup() {
+      const overlay = $('startup-overlay');
+      if (!overlay || overlay.dataset.done) return;
+      overlay.dataset.done = 'true';
+      overlay.classList.add('done');
+      setTimeout(() => {
+        overlay.remove();
+        if (document.activeElement === document.body) $('q').focus();
+      }, 300);
+    }
+    function finishStartup() {
+      if (!editorReady || !providerReady) return;
+      const remaining = Math.max(0, 750 - (Date.now() - startupStartedAt));
+      setTimeout(hideStartup, remaining);
+    }
+    setTimeout(hideStartup, 12000);
+    self.MonacoEnvironment = {
+      getWorkerUrl: () => URL.createObjectURL(new Blob([
+        `self.MonacoEnvironment={baseUrl:'${base}/'};importScripts('${base}/vs/base/worker/workerMain.js');`
+      ], { type: 'text/javascript' }))
+    };
+    require.config({ paths: { vs: base + '/vs' } });
+    require(['vs/editor/editor.main'], () => {
+      $('editor-welcome').style.display = 'flex';
+      ed = monaco.editor.create($('mon'), {
+        value: '',
+        language: 'javascript',
+        theme: savedTheme === 'light' ? 'vs' : 'vs-dark',
+        automaticLayout: true,
+        fontSize: 14,
+        minimap: { enabled: true }
+      });
+      ed.onDidChangeCursorPosition(e => {
+        $('sl').textContent = currentFile ? `Ln ${e.position.lineNumber}, Col ${e.position.column}` : '';
+      });
+      ed.onDidChangeModelContent(() => {
+        if (currentFile) {
+          currentFile.dirty = true;
+          renderTabs();
+        }
+      });
+      ed.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyS, saveFile);
+      if (!currentFile) ed.setValue('// Otevři složku projektu a začni kódovat');
+      editorReady = true;
+      $('startup-status').textContent = 'Editor připraven';
+      finishStartup();
+    });
+
+    function formatSize(bytes) {
+      if (bytes < 1024) return `${bytes} B`;
+      const units = ['KB', 'MB', 'GB'];
+      let value = bytes / 1024;
+      let unit = 0;
+      while (value >= 1024 && unit < units.length - 1) {
+        value /= 1024;
+        unit++;
+      }
+      return `${value.toFixed(value >= 10 ? 0 : 1)} ${units[unit]}`;
+    }
+
+    async function renderTree(element, directory, depth) {
+      const items = await api.readDir(directory);
+      for (const item of items) {
+        const row = document.createElement('div');
+        row.className = 'file-row';
+        row.style.paddingLeft = `${8 + depth * 12}px`;
+        row.textContent = `${item.dir ? '▸ ' : '  '}${item.name}`;
+        element.appendChild(row);
+        if (item.dir) {
+          let children = null;
+          row.onclick = async () => {
+            selectedDirectory = item.path;
+            if (children) {
+              children.remove();
+              children = null;
+              row.textContent = `▸ ${item.name}`;
+            } else {
+              children = document.createElement('div');
+              row.after(children);
+              row.textContent = `▾ ${item.name}`;
+              await renderTree(children, item.path, depth + 1);
+            }
+          };
+        } else {
+          row.onclick = () => {
+            selectedDirectory = item.path.slice(0, Math.max(item.path.lastIndexOf('\\'), item.path.lastIndexOf('/')));
+            document.querySelectorAll('#tree .file-row').forEach(entry => entry.classList.remove('active'));
+            row.classList.add('active');
+            openFile(item);
+          };
+        }
+        row.oncontextmenu = event => {
+          event.preventDefault();
+          showEntryMenu(item);
+        };
+      }
+    }
+
+    async function openFolder() {
+      const directory = await api.openFolder();
+      if (!directory) return;
+      root = directory;
+      selectedDirectory = directory;
+      $('side-title').textContent = directory.split(/[\\/]/).pop().toUpperCase();
+      $('tree').textContent = '';
+      await renderTree($('tree'), directory, 0);
+      localStorage.setItem('recentProject', root);
+      $('recent-projects').textContent = directory;
+    }
+
+    async function refreshTree() {
+      if (!root) return;
+      $('tree').textContent = '';
+      await renderTree($('tree'), root, 0);
+    }
+
+    async function createProjectEntry(isDirectory) {
+      if (!root) {
+        setStatus('Nejprve otevři složku projektu.');
+        return;
+      }
+      const parentPath = selectedDirectory || root;
+      const name = prompt(isDirectory ? 'Název nové složky:' : 'Název nového souboru:');
+      if (!name) return;
+      try {
+        const entry = await api.createEntry(parentPath, name.trim(), isDirectory);
+        await refreshTree();
+        if (!isDirectory) await openFile(entry);
+        setStatus(isDirectory ? 'Složka vytvořena' : 'Soubor vytvořen');
+      } catch (error) {
+        setStatus(`Vytvoření se nepodařilo: ${error.message}`);
+      }
+    }
+
+    async function showEntryMenu(entry) {
+      const action = prompt(`Položka: ${entry.name}\nZadej r pro přejmenování nebo d pro smazání:`);
+      if (!action) return;
+      if (action.trim().toLowerCase() === 'r') {
+        const name = prompt('Nový název:', entry.name);
+        if (!name || name.trim() === entry.name) return;
+        try {
+          await api.renameEntry(entry.path, name.trim());
+          const openedFile = opened.find(file => file.path === entry.path);
+          if (openedFile) {
+            const content = openedFile.model.getValue();
+            openedFile.model.dispose();
+            openedFile.path = `${entry.path.slice(0, Math.max(entry.path.lastIndexOf('\\'), entry.path.lastIndexOf('/')) + 1)}${name.trim()}`;
+            openedFile.name = name.trim();
+            openedFile.model = monaco.editor.createModel(content, undefined, monaco.Uri.file(openedFile.path));
+            if (openedFile === currentFile) ed.setModel(openedFile.model);
+            renderTabs();
+          }
+          await refreshTree();
+          setStatus('Položka přejmenována');
+        } catch (error) {
+          setStatus(`Přejmenování se nepodařilo: ${error.message}`);
+        }
+      } else if (action.trim().toLowerCase() === 'd') {
+        if (!confirm(`Opravdu smazat ${entry.dir ? 'složku a její obsah' : 'soubor'} „${entry.name}“?`)) return;
+        try {
+          await api.deleteEntry(entry.path);
+          const prefix = `${entry.path}${entry.path.includes('\\') ? '\\' : '/'}`;
+          const removed = opened.filter(file => file.path === entry.path || (entry.dir && file.path.startsWith(prefix)));
+          opened = opened.filter(file => !removed.includes(file));
+          removed.forEach(file => file.model.dispose());
+          if (removed.includes(currentFile)) {
+            currentFile = opened[0] || null;
+            ed.setModel(currentFile ? currentFile.model : null);
+            $('editor-welcome').style.display = currentFile ? 'none' : 'flex';
+          }
+          renderTabs();
+          await refreshTree();
+          setStatus('Položka odstraněna');
+        } catch (error) {
+          setStatus(`Mazání se nepodařilo: ${error.message}`);
+        }
+      }
+    }
+
+    async function openFile(item) {
+      selectedDirectory = item.path.slice(0, Math.max(item.path.lastIndexOf('\\'), item.path.lastIndexOf('/')));
+      let file = opened.find(entry => entry.path === item.path);
+      if (!file) {
+        const text = await api.readFile(item.path);
+        const model = monaco.editor.createModel(text, undefined, monaco.Uri.file(item.path));
+        file = { path: item.path, name: item.name, model, dirty: false };
+        opened.push(file);
+      }
+      showFile(file);
+    }
+
+    function showFile(file) {
+      currentFile = file;
+      $('editor-welcome').style.display = 'none';
+      ed.setModel(file.model);
+      renderTabs();
+    }
+
+    function renderTabs() {
+      const tabs = $('tabs');
+      tabs.textContent = '';
+      opened.forEach(file => {
+        const tab = document.createElement('div');
+        tab.className = `tab${file === currentFile ? ' active' : ''}`;
+        const label = document.createElement('span');
+        label.textContent = `${file.name}${file.dirty ? ' ●' : ''}`;
+        const close = document.createElement('span');
+        close.className = 'tab-close';
+        close.textContent = '×';
+        close.title = 'Zavřít soubor';
+        close.onclick = event => {
+          event.stopPropagation();
+          opened = opened.filter(entry => entry !== file);
+          file.model.dispose();
+          if (currentFile === file) {
+            currentFile = opened[0] || null;
+            if (currentFile) showFile(currentFile);
+            else {
+              ed.setModel(null);
+              $('editor-welcome').style.display = 'flex';
+              renderTabs();
+            }
+          } else renderTabs();
+        };
+        tab.append(label, close);
+        tab.onclick = () => showFile(file);
+        tabs.appendChild(tab);
+      });
+    }
+
+    async function saveFile() {
+      if (!currentFile) return;
+      await api.writeFile(currentFile.path, currentFile.model.getValue());
+      currentFile.dirty = false;
+      renderTabs();
+      setStatus('Soubor uložen');
+    }
+
+    function updateChatSelect() {
+      const select = $('chat-select');
+      select.textContent = '';
+      chats.sort((a, b) => b.updatedAt - a.updatedAt);
+      chats.forEach(chat => {
+        const option = document.createElement('option');
+        option.value = chat.id;
+        option.textContent = chat.title || 'Nový chat';
+        select.appendChild(option);
+      });
+      if (activeChat) select.value = activeChat.id;
+    }
+
+    function makeChat() {
+      return {
+        id: (crypto.randomUUID ? crypto.randomUUID() : `${Date.now()}-${Math.random()}`),
+        title: 'Nový chat',
+        updatedAt: Date.now(),
+        messages: []
+      };
+    }
+
+    async function persistChat() {
+      if (!activeChat) return;
+      activeChat.updatedAt = Date.now();
+      const index = chats.findIndex(chat => chat.id === activeChat.id);
+      if (index < 0) chats.push(activeChat);
+      else chats[index] = activeChat;
+      try {
+        await api.saveChat(activeChat);
+        updateChatSelect();
+      } catch (error) {
+        setStatus(`Chyba ukládání chatu: ${error.message}`);
+      }
+    }
+
+    function addMessage(role, text, attachments, citations, changes) {
+      const message = {
+        role,
+        content: text,
+        attachments: attachments || [],
+        citations: citations || [],
+        changes: changes || []
+      };
+      activeChat.messages.push(message);
+      renderMessage(message);
+      return message;
+    }
+
+    function renderMessage(message, prepend, shouldScroll) {
+      const container = document.createElement('div');
+      container.className = `message${message.role === 'user' ? ' user' : ''}`;
+      const label = document.createElement('div');
+      label.className = 'message-label';
+      label.textContent = message.role === 'user'
+        ? profileName
+        : `Code AI · ${$('agent-profile').selectedOptions[0].textContent}`;
+      const body = document.createElement('div');
+      body.className = 'message-body';
+      renderText(body, message.content || '');
+      container.append(label, body);
+      if (message.role === 'user') {
+        const tools = document.createElement('div');
+        tools.className = 'message-tools';
+        const edit = document.createElement('button');
+        edit.className = 'button edit-user-message';
+        edit.textContent = 'Upravit';
+        edit.title = 'Upravit a znovu odeslat tuto zprávu';
+        edit.disabled = busy;
+        edit.onclick = () => beginMessageEdit(message);
+        tools.appendChild(edit);
+        container.appendChild(tools);
+      }
+      (message.attachments || []).forEach(file => {
+        const item = document.createElement('span');
+        item.className = 'attachment-label';
+        item.textContent = `📎 ${file.name}${file.directory ? ' · složka' : file.url ? ' · odkaz' : ` · ${formatSize(file.size || 0)}`}`;
+        container.appendChild(item);
+      });
+      if (message.citations && message.citations.length) {
+        const sources = document.createElement('div');
+        sources.className = 'source-list';
+        const title = document.createElement('strong');
+        title.textContent = 'Zdroje:';
+        sources.appendChild(title);
+        message.citations.forEach((citation, index) => {
+          const link = document.createElement('a');
+          link.href = citation.url;
+          link.textContent = `[${index + 1}] ${citation.title}`;
+          link.title = citation.url;
+          link.onclick = event => {
+            event.preventDefault();
+            api.openExternal(citation.url).catch(error => setStatus(`Odkaz se nepodařilo otevřít: ${error.message}`));
+          };
+          sources.appendChild(link);
+        });
+        container.appendChild(sources);
+      }
+      if (message.changes && message.changes.length) {
+        const proposal = document.createElement('div');
+        proposal.className = 'project-proposal';
+        const list = document.createElement('div');
+        list.textContent = `Návrh úprav (${message.changes.length} souborů):`;
+        message.changes.forEach(change => {
+          const file = document.createElement('div');
+          file.className = 'attachment-label';
+          file.textContent = `• ${change.path}`;
+          list.appendChild(file);
+        });
+        const apply = document.createElement('button');
+        apply.className = 'button primary';
+        apply.textContent = message.applied ? 'Změny použity' : 'Zkontrolovat a použít změny…';
+        apply.disabled = !!message.applied;
+        apply.onclick = () => openProjectChangePreview(message);
+        proposal.append(list, apply);
+        container.appendChild(proposal);
+      }
+      if (prepend && $('msgs').firstChild) $('msgs').insertBefore(container, $('msgs').firstChild);
+      else $('msgs').appendChild(container);
+      if (!prepend) {
+        const messages = $('msgs').querySelectorAll('.message');
+        const excess = messages.length - MAX_RENDERED_MESSAGES;
+        if (excess > 0) {
+          for (let index = 0; index < excess; index++) messages[index].remove();
+          renderedStart += excess;
+          addLoadEarlierButton();
+        }
+      }
+      if (shouldScroll !== false) $('msgs').scrollTop = $('msgs').scrollHeight;
+    }
+
+    function renderText(element, text) {
+      const chunks = text.split('```');
+      chunks.forEach((chunk, index) => {
+        if (index % 2 === 0) {
+          if (chunk) {
+            const span = document.createElement('span');
+            span.textContent = chunk;
+            element.appendChild(span);
+          }
+          return;
+        }
+        const language = (chunk.match(/^([^\n]*)\n/) || [])[1] || '';
+        const code = chunk.replace(/^[^\n]*\n/, '').replace(/\n$/, '');
+        const block = document.createElement('div');
+        block.className = 'code-block';
+        const pre = document.createElement('pre');
+        pre.textContent = code;
+        const save = document.createElement('button');
+        save.className = 'button';
+        save.textContent = 'Uložit jako…';
+        save.onclick = async () => {
+          const extension = ({ javascript: 'js', js: 'js', typescript: 'ts', ts: 'ts', python: 'py', py: 'py', json: 'json', html: 'html', css: 'css', markdown: 'md', md: 'md' })[language.trim().toLowerCase()] || 'txt';
+          try {
+            if (await api.saveGeneratedFile({ name: `ai-output.${extension}`, content: code })) setStatus('Soubor uložen');
+          } catch (error) {
+            setStatus(`Soubor se nepodařilo uložit: ${error.message}`);
+          }
+        };
+        const insert = document.createElement('button');
+        insert.className = 'button primary';
+        insert.textContent = 'Vložit do složky';
+        insert.onclick = async () => {
+          if (!root) {
+            setStatus('Nejprve otevři složku projektu, do které chceš soubor uložit.');
+            return;
+          }
+          const extension = ({ javascript: 'js', js: 'js', typescript: 'ts', ts: 'ts', python: 'py', py: 'py', json: 'json', html: 'html', css: 'css', markdown: 'md', md: 'md' })[language.trim().toLowerCase()] || 'txt';
+          const name = prompt('Název souboru v otevřeném projektu:', `ai-output.${extension}`);
+          if (!name || !name.trim()) return;
+          try {
+            const result = await api.saveProjectFile(selectedDirectory || root, name.trim(), code);
+            if (!result) return;
+            await refreshTree();
+            await openFile({ path: result.path, name: result.name, dir: false });
+            setStatus(`Soubor uložen do projektu: ${result.name}`);
+          } catch (error) {
+            setStatus(`Soubor se nepodařilo uložit do projektu: ${error.message}`);
+          }
+        };
+        block.append(pre, save, insert);
+        element.appendChild(block);
+      });
+    }
+
+    function showChat(chat) {
+      if (editingMessage && !chat.messages.includes(editingMessage)) cancelMessageEdit(true);
+      activeChat = chat;
+      pendingAttachments = [];
+      renderAttachments();
+      renderVisibleMessages();
+      updateChatSelect();
+    }
+
+    function renderVisibleMessages() {
+      $('msgs').textContent = '';
+      renderedStart = Math.max(0, activeChat.messages.length - RENDER_BATCH_SIZE);
+      if (activeChat.messages.length) {
+        for (let index = renderedStart; index < activeChat.messages.length; index++) {
+          renderMessage(activeChat.messages[index], false, false);
+        }
+        if (renderedStart > 0) addLoadEarlierButton();
+        $('msgs').scrollTop = $('msgs').scrollHeight;
+      }
+      else renderChatWelcome();
+    }
+
+    function addLoadEarlierButton() {
+      const currentButton = $('msgs').querySelector('.load-older');
+      if (currentButton) {
+        currentButton.textContent = `Načíst ${Math.min(RENDER_BATCH_SIZE, renderedStart)} starších zpráv`;
+        return;
+      }
+      const button = document.createElement('button');
+      button.className = 'button load-older';
+      button.textContent = `Načíst ${Math.min(RENDER_BATCH_SIZE, renderedStart)} starších zpráv`;
+      button.onclick = loadEarlierMessages;
+      $('msgs').insertBefore(button, $('msgs').firstChild);
+    }
+
+    function loadEarlierMessages() {
+      if (!activeChat || renderedStart <= 0) return;
+      const previousStart = renderedStart;
+      const nextStart = Math.max(0, previousStart - RENDER_BATCH_SIZE);
+      const previousHeight = $('msgs').scrollHeight;
+      const button = $('msgs').querySelector('.load-older');
+      if (button) button.remove();
+      for (let index = previousStart - 1; index >= nextStart; index--) {
+        renderMessage(activeChat.messages[index], true, false);
+      }
+      renderedStart = nextStart;
+      if (renderedStart > 0) addLoadEarlierButton();
+      $('msgs').scrollTop += $('msgs').scrollHeight - previousHeight;
+    }
+
+    function renderChatWelcome() {
+      const welcome = document.createElement('div');
+      welcome.className = 'chat-welcome';
+      const title = document.createElement('strong');
+      title.textContent = `Ahoj${profileName ? `, ${profileName}` : ''}!`;
+      const description = document.createElement('div');
+      description.textContent = 'Zeptej se na kód, přilož soubor nebo vlož odkaz. Vyber si AI agenta dole.';
+      welcome.append(title, description);
+      [
+        ['Vysvětli mi, jak začít s projektem', 'Jak mám začít s tímto projektem?'],
+        ['Napiš jednoduchou webovou aplikaci', 'Navrhni a napiš jednoduchou responzivní webovou aplikaci.'],
+        ['Najdi chybu v mém kódu', 'Pomoz mi najít chybu a vysvětli její příčinu.']
+      ].forEach(([label, prompt]) => {
+        const button = document.createElement('button');
+        button.className = 'chat-suggestion';
+        button.textContent = label;
+        button.onclick = () => ask(prompt);
+        welcome.appendChild(button);
+      });
+      $('msgs').appendChild(welcome);
+    }
+
+    async function newChat() {
+      if (busy) {
+        setStatus('Požadavek právě běží. Nový chat otevři po jeho dokončení.');
+        return;
+      }
+      const chat = makeChat();
+      chats.unshift(chat);
+      showChat(chat);
+      await persistChat();
+      $('q').focus();
+    }
+
+    function setStatus(text) {
+      $('ss').textContent = text;
+    }
+
+    function updateBusyControls() {
+      $('go').disabled = false;
+      $('go-label').textContent = editingMessage
+        ? 'Upravit a znovu odeslat'
+        : busy
+          ? `Zařadit${queuedChatRequests.length ? ` (${queuedChatRequests.length + 1})` : ''}`
+          : 'Odeslat';
+      $('chat-select').disabled = busy;
+      $('new-chat').disabled = busy;
+      $('delete-chat').disabled = busy;
+      $('clear-chat').disabled = busy;
+      document.querySelectorAll('.edit-user-message').forEach(button => { button.disabled = busy; });
+    }
+
+    function cancelMessageEdit(clearInput) {
+      editingMessage = null;
+      $('edit-mode').hidden = true;
+      if (clearInput) $('q').value = '';
+      updateBusyControls();
+    }
+
+    function beginMessageEdit(message) {
+      if (busy) return;
+      if (!activeChat || !activeChat.messages.includes(message)) {
+        setStatus('Tuto zprávu už nelze upravit v otevřeném chatu.');
+        return;
+      }
+      editingMessage = message;
+      const attachments = Array.isArray(message.attachments) ? message.attachments : [];
+      const suffix = attachments.length ? `\nPřiložené soubory: ${attachments.map(file => file.name).join(', ')}` : '';
+      const content = message.content || '';
+      $('q').value = suffix && content.endsWith(suffix) ? content.slice(0, -suffix.length) : content;
+      $('edit-mode').hidden = false;
+      updateBusyControls();
+      $('q').focus();
+      $('q').setSelectionRange($('q').value.length, $('q').value.length);
+      $('q').dispatchEvent(new Event('input'));
+    }
+
+    function finishChatRequest() {
+      if (queuedChatRequests.length) {
+        const next = queuedChatRequests.shift();
+        updateBusyControls();
+        setTimeout(() => ask(next.text, next.options, next.attachments, true), 0);
+        return;
+      }
+      busy = false;
+      updateBusyControls();
+    }
+
+    function showQwenAlert(message) {
+      qwenUnavailable = true;
+      $('connection-alert-text').textContent = message || 'Lokální Qwen není připojen.';
+      $('connection-alert').hidden = (localStorage.getItem('provider') || 'qwen') !== 'qwen';
+    }
+
+    async function checkQwenConnection() {
+      const button = $('qwen-check');
+      const result = $('qwen-setup-result');
+      if (!window.api) {
+        result.textContent = 'Spusť Code AI jako desktopovou aplikaci.';
+        return;
+      }
+      button.disabled = true;
+      result.textContent = 'Ověřuji místní server…';
+      try {
+        const qwenUrl = $('qwen-url').value.trim() || 'http://127.0.0.1:1234';
+        const qwenModel = $('qwen-model').value.trim();
+        localStorage.setItem('qwenUrl', qwenUrl);
+        localStorage.setItem('qwenModel', qwenModel);
+        const status = await api.checkQwen(
+          qwenUrl,
+          qwenModel
+        );
+        if (!status.available) {
+          showQwenAlert('Qwen server neběží. Otevři průvodce připojením a spusť LM Studio Local Server.');
+          result.textContent = status.error || 'Server není dostupný na zadané adrese.';
+          setStatus(result.textContent);
+        } else if (!status.modelAvailable) {
+          showQwenAlert('Server běží, ale zvolený model není načten. Nech ID modelu prázdné nebo načti správný model.');
+          result.textContent = `Server běží; model nenalezen. Dostupné: ${status.models.join(', ') || 'žádný model'}`;
+          setStatus('Qwen server běží, ale zvolený model není dostupný.');
+        } else {
+          qwenUnavailable = false;
+          $('connection-alert').hidden = true;
+          if (!$('qwen-model').value.trim() && status.models.length) {
+            $('qwen-model').value = status.models[0];
+            localStorage.setItem('qwenModel', status.models[0]);
+          }
+          result.textContent = `Připojeno${status.models.length ? ` · ${status.models.join(', ')}` : ''}`;
+          setStatus('Qwen připojen a připraven.');
+        }
+      } catch (error) {
+        showQwenAlert('Připojení k Qwen selhalo. Zkontroluj adresu a zda server skutečně běží.');
+        result.textContent = `Kontrola selhala: ${error.message}`;
+        setStatus(result.textContent);
+      } finally {
+        button.disabled = false;
+      }
+    }
+
+    function openQwenSetup() {
+      $('qwen-setup-result').textContent = '';
+      $('qwen-setup-dialog').showModal();
+    }
+
+    function openQwenLink(url) {
+      api.openExternal(url).catch(error => setStatus(`Odkaz se nepodařilo otevřít: ${error.message}`));
+    }
+
+    function renderUpdateStatus(status) {
+      if (!status) return;
+      $('update-status').textContent = status.message;
+      $('install-app-update').hidden = status.state !== 'downloaded';
+      $('check-app-updates').disabled = ['development', 'checking', 'downloading'].includes(status.state);
+      if (status.state === 'development') {
+        $('update-status').textContent = `${status.message} Vydání a aktualizace najdeš na GitHub Releases.`;
+      }
+    }
+
+    function openProjectChangePreview(message) {
+      pendingProjectChanges = message;
+      const select = $('change-file');
+      select.textContent = '';
+      message.changes.forEach((change, index) => {
+        const option = document.createElement('option');
+        option.value = String(index);
+        option.textContent = change.path;
+        select.appendChild(option);
+      });
+      const updatePreview = () => {
+        const change = message.changes[Number(select.value)];
+        $('change-preview').value = change ? change.content : '';
+      };
+      select.onchange = updatePreview;
+      updatePreview();
+      $('changes-dialog').showModal();
+    }
+
+    async function applyProposedChanges(message) {
+      const changes = message.changes;
+      if (!root || !window.api) {
+        setStatus('Otevři projekt v aplikaci před použitím změn.');
+        return;
+      }
+      try {
+        const applied = await api.applyProjectChanges(root, changes);
+        for (const change of changes) {
+          const fullPath = `${root}${root.includes('\\') ? '\\' : '/'}${change.path.replace(/[\\/]/g, root.includes('\\') ? '\\' : '/')}`;
+          const file = opened.find(entry => entry.path.toLowerCase() === fullPath.toLowerCase());
+          if (file) {
+            file.model.setValue(change.content);
+            file.dirty = false;
+          }
+        }
+        renderTabs();
+        await refreshTree();
+        message.applied = true;
+        $('changes-dialog').close();
+        pendingProjectChanges = null;
+        renderVisibleMessages();
+        await persistChat();
+        setStatus(`Upraveno ${applied.length} souborů`);
+      } catch (error) {
+        setStatus(`Použití změn selhalo: ${error.message}`);
+      }
+    }
+
+    function parseProjectChanges(raw) {
+      const withoutThought = raw.replace(/<think>[\s\S]*?<\/think>/gi, '').trim();
+      const fenced = withoutThought.match(/```(?:json)?\s*([\s\S]*?)```/i);
+      const value = JSON.parse(fenced ? fenced[1] : withoutThought);
+      if (!value || !Array.isArray(value.changes) || value.changes.length === 0 || value.changes.length > 30) {
+        throw new Error('Návrh musí obsahovat seznam changes s 1 až 30 položkami.');
+      }
+      if (value.changes.some(change => !change || typeof change.path !== 'string' || typeof change.content !== 'string')) {
+        throw new Error('Každá položka musí mít textové path a content.');
+      }
+      return value.changes;
+    }
+
+    function setChatVisible(visible) {
+      $('main').classList.toggle('chat-hidden', !visible);
+      $('chat-open').setAttribute('aria-expanded', String(visible));
+      $('chat-open').title = visible ? 'Chat je otevřený' : 'Zobrazit chat';
+      if (visible) $('q').focus();
+    }
+
+    function renderAttachments() {
+      const list = $('attachment-list');
+      list.textContent = '';
+      pendingAttachments.forEach((file, index) => {
+        const chip = document.createElement('div');
+        chip.className = 'attachment-chip';
+        const label = document.createElement('span');
+        label.textContent = `${file.name}${file.directory ? ' · složka' : file.url ? ' · odkaz' : ` · ${formatSize(file.size || 0)}`}`;
+        const remove = document.createElement('button');
+        remove.textContent = '×';
+        remove.title = 'Odebrat přílohu';
+        remove.onclick = () => {
+          pendingAttachments.splice(index, 1);
+          renderAttachments();
+        };
+        chip.append(label, remove);
+        list.appendChild(chip);
+      });
+    }
+
+    async function addAttachments() {
+      try {
+        const selected = await api.pickFiles();
+        if (!selected.length) return;
+        const remaining = Math.max(0, 5 - pendingAttachments.length);
+        const valid = selected.filter(file => file.size <= 10 * 1024 * 1024 * 1024).slice(0, remaining);
+        if (selected.some(file => file.size > 10 * 1024 * 1024 * 1024)) {
+          setStatus('Soubor překračuje maximální velikost 10 GB.');
+        } else if (valid.length < selected.length) {
+          setStatus('Přidáno nejvýše 5 položek; limit souboru je 10 GB.');
+        }
+        pendingAttachments.push(...valid);
+        renderAttachments();
+      } catch (error) {
+        setStatus(`Výběr souboru selhal: ${error.message}`);
+      }
+    }
+
+    async function addDroppedFiles(fileList) {
+      try {
+        const remaining = Math.max(0, 5 - pendingAttachments.length);
+        if (!remaining) {
+          setStatus('Najednou lze připojit nejvýše 5 položek.');
+          return;
+        }
+        const paths = api.getDroppedFilePaths(fileList).slice(0, remaining);
+        if (!paths.length) throw new Error('Z přetažených souborů se nepodařilo získat cestu.');
+        const files = await api.describeFiles(paths);
+        const valid = files.filter(file => file.size <= 10 * 1024 * 1024 * 1024);
+        pendingAttachments.push(...valid);
+        renderAttachments();
+        if (valid.length !== files.length) setStatus('Soubor překračuje maximální velikost 10 GB.');
+      } catch (error) {
+        setStatus(`Přetažení souboru selhalo: ${error.message}`);
+      }
+    }
+
+    async function addFolder() {
+      if (pendingAttachments.length >= 5) {
+        setStatus('Najednou lze připojit nejvýše 5 položek.');
+        return;
+      }
+      try {
+        const folder = await api.pickFolder();
+        if (!folder) return;
+        pendingAttachments.push(folder);
+        renderAttachments();
+        setStatus('Složka připojena; do AI se odešle omezený výběr textových souborů.');
+      } catch (error) {
+        setStatus(`Výběr složky selhal: ${error.message}`);
+      }
+    }
+
+    function addLink() {
+      const rawUrl = prompt('Vlož webový odkaz (http nebo https):');
+      if (!rawUrl) return;
+      try {
+        const url = new URL(rawUrl.trim());
+        if (!['http:', 'https:'].includes(url.protocol)) throw new Error('Použij odkaz začínající http:// nebo https://.');
+        if (pendingAttachments.length >= 5) throw new Error('Najednou lze připojit nejvýše 5 položek.');
+        pendingAttachments.push({ url: url.href, name: url.hostname, size: 0 });
+        renderAttachments();
+      } catch (error) {
+        setStatus(error.message || 'Neplatný webový odkaz.');
+      }
+    }
+
+    async function ask(rawText, options, capturedAttachments, fromQueue, existingMessage) {
+      const text = rawText.trim();
+      if (!window.api) {
+        setStatus('Chat vyžaduje spuštění aplikace přes npm start, aby se aktivoval bezpečný Electron bridge.');
+        return;
+      }
+      const attachments = capturedAttachments || pendingAttachments.splice(0);
+      if (!text && !attachments.length) return;
+      if (!activeChat) {
+        activeChat = makeChat();
+        chats.unshift(activeChat);
+        showChat(activeChat);
+      }
+      if (busy && !fromQueue) {
+        queuedChatRequests.push({ text, options, attachments });
+        renderAttachments();
+        updateBusyControls();
+        setStatus(`Zpráva zařazena do fronty (${queuedChatRequests.length}). Můžeš dál psát.`);
+        return;
+      }
+      if (!busy) busy = true;
+      updateBusyControls();
+      const question = text || 'Analyzuj prosím přiložené soubory.';
+      renderAttachments();
+      let projectContext = '';
+      if (options && options.projectReview) {
+        if (!root) {
+          setStatus('Pro revizi projektu nejprve otevři jeho složku.');
+          finishChatRequest();
+          return;
+        }
+        try {
+          const review = await api.reviewProject(root);
+          projectContext = review.text;
+          if (review.truncated) projectContext += '\n\nRevize je zkrácená; neobsahuje všechny soubory projektu.';
+        } catch (error) {
+          setStatus(`Projekt se nepodařilo načíst: ${error.message}`);
+          finishChatRequest();
+          return;
+        }
+      }
+      const selection = currentFile && ed ? ed.getSelection() : null;
+      const selectedCode = selection && !selection.isEmpty() ? currentFile.model.getValueInRange(selection) : '';
+      const fileContext = currentFile && ed
+        ? `Aktuální soubor ${currentFile.name}:\n\`\`\`\n${currentFile.model.getValue().slice(0, 40000)}\n\`\`\`\n${selectedCode ? `Výběr:\n\`\`\`\n${selectedCode.slice(0, 20000)}\n\`\`\`\n` : ''}`
+        : '';
+      const attachmentText = attachments.length ? `\nPřiložené soubory: ${attachments.map(file => file.name).join(', ')}` : '';
+      const userMessage = existingMessage || addMessage('user', question + attachmentText, attachments);
+      userMessage.content = question + attachmentText;
+      userMessage.attachments = attachments;
+      userMessage.context = `${fileContext}${projectContext ? `\n${projectContext}` : ''}`;
+      if (activeChat.title === 'Nový chat') {
+        activeChat.title = question.slice(0, 48) || 'Přílohy';
+        updateChatSelect();
+      }
+      await persistChat();
+      const response = document.createElement('div');
+      response.className = 'message';
+      response.textContent = 'Přemýšlím…';
+      $('msgs').appendChild(response);
+      $('msgs').scrollTop = $('msgs').scrollHeight;
+      setStatus('AI připravuje odpověď…');
+      const messages = activeChat.messages.slice(-10).map(message => ({
+        role: message.role,
+        content: message.content,
+        context: message.context || '',
+        attachments: message.attachments || []
+      }));
+      try {
+        const agentPrompt = agentProfiles[$('agent-profile').value] || agentProfiles.developer;
+        const enabledSkills = [...$('agent-skills').selectedOptions]
+          .map(option => agentSkills[option.value])
+          .filter(Boolean);
+        const skillsPrompt = enabledSkills.length
+          ? `\n\nAktivní dovednosti:\n${enabledSkills.map(skill => `- ${skill}`).join('\n')}`
+          : '';
+        const projectEditInstruction = options && options.projectEdit
+          ? '\n\nUživatel žádá o skutečné úpravy projektu. Vrať pouze validní JSON bez markdownu v přesném tvaru {"changes":[{"path":"relativni/cesta","content":"celý nový obsah"}]}. Cesty musí být relativní k otevřené složce. Vypiš pouze soubory, které je nutné změnit, nevymýšlej nezjištěný obsah souborů a zachovej jejich stávající chování. Neprováděj destruktivní změny ani neměň konfigurační soubory s klíči nebo tajnými údaji. Pokud nelze bezpečný návrh vytvořit, vrať {"changes":[]} a důvod uveď v textovém poli content první položky pouze tehdy, pokud existuje bezpečná změna.'
+          : '';
+        const result = await api.ai({
+          system: `${agentPrompt}\n\nJsi pečlivý programátorský asistent integrovaný do lokálního IDE. Odpovídej česky, používej poskytnutý kontext projektu a příloh. Uvažuj důkladně, ověř předpoklady, přiznej nejistotu a nevymýšlej si obsah souborů. Pokud je zapnuté webové vyhledávání a dotaz se týká aktuálních nebo ověřitelných faktů, hledej důvěryhodné zdroje, cituj je a rozlišuj doložená fakta od odhadů. Bez zdrojů netvrď, že je něco ověřené. Nabízej konkrétní bezpečné kroky; kód vkládej do bloků \`\`\`jazyk. Celý soubor vypisuj jen tehdy, když si o něj uživatel řekne nebo je to potřebné.${skillsPrompt}${projectEditInstruction}`,
+          messages,
+          model: (localStorage.getItem('provider') || 'qwen') === 'qwen'
+            ? localStorage.getItem('qwenModel') || $('qwen-model').value
+            : $('model').value,
+          extendedThinking: $('thinking').checked,
+          webSearch: $('web-search').checked,
+          provider: localStorage.getItem('provider') || 'qwen',
+          qwenUrl: localStorage.getItem('qwenUrl') || 'http://127.0.0.1:1234',
+          agentProfile: $('agent-profile').value
+        });
+        if (result.error) {
+          response.textContent = `⚠ ${result.error}`;
+          setStatus('Požadavek se nepodařilo dokončit');
+          if ((localStorage.getItem('provider') || 'qwen') === 'qwen') {
+            showQwenAlert('Chat se nepřipojil. Otevři nastavení Qwen, stáhni model a spusť Local Server.');
+          }
+        } else {
+          response.remove();
+          if (options && options.projectEdit) {
+            try {
+              const changes = parseProjectChanges(result.text || '');
+              if (!changes.length) throw new Error('Model nenavrhl žádné změny.');
+              addMessage('assistant', `Připravil jsem návrh úprav pro ${changes.length} souborů. Zkontroluj obsah každého souboru před použitím.`, [], result.citations, changes);
+              setStatus('Návrh připraven ke kontrole');
+            } catch (error) {
+              addMessage('assistant', `Návrh změn se nepodařilo bezpečně přečíst: ${error.message}\n\nOdpověď modelu:\n${result.text || '(prázdná odpověď)'}`, [], result.citations);
+              setStatus('AI nevrátila použitelný návrh změn');
+            }
+          } else {
+            addMessage('assistant', result.text || 'Model nevrátil textovou odpověď.', [], result.citations);
+            setStatus('Připraveno');
+          }
+          await persistChat();
+        }
+      } catch (error) {
+        response.textContent = `⚠ ${error.message}`;
+        setStatus(`Chyba: ${error.message}`);
+      } finally {
+        finishChatRequest();
+      }
+    }
+
+    async function loadChats() {
+      chats = await api.listChats();
+      if (chats.length) showChat(chats[0]);
+      else await newChat();
+    }
+
+    function updateProviderSettings() {
+      const local = $('provider-select').value === 'qwen';
+      $('qwen-url-row').hidden = !local;
+      $('qwen-model-row').hidden = !local;
+      $('web-search').disabled = local;
+      $('thinking').disabled = false;
+      $('connection-alert').hidden = !local || !qwenUnavailable;
+    }
+
+    function openSettings() {
+      $('profile-name').value = profileName;
+      $('theme-select').value = localStorage.getItem('theme') || 'dark';
+      $('profile-model').value = $('model').value;
+      $('provider-select').value = localStorage.getItem('provider') || 'qwen';
+      $('qwen-url').value = localStorage.getItem('qwenUrl') || 'http://127.0.0.1:1234';
+      $('qwen-model').value = localStorage.getItem('qwenModel') || '';
+      $('theme-select').value = localStorage.getItem('theme') || 'dark';
+      const skills = getSavedSkills();
+      [...$('agent-skills').options].forEach(option => { option.selected = skills.includes(option.value); });
+      updateProviderSettings();
+      $('settings-dialog').showModal();
+    }
+
+    async function runCurrentFile() {
+      if (!currentFile) {
+        return;
+      }
+      if (!root) {
+        setStatus('Nejprve otevři složku projektu.');
+        return;
+      }
+      $('bottom-panel').classList.remove('collapsed');
+      $('debug-output').textContent = '';
+      $('bottom-tabs button[data-panel="terminal"]').classList.add('active');
+      try {
+        const result = await api.runFile({ filePath: currentFile.path, cwd: root });
+        if (result.error) {
+          $('debug-output').textContent += `⚠ ${result.error}\n`;
+          setStatus(result.error);
+        } else {
+          setStatus('Program běží; výstup je v panelu dole');
+        }
+      } catch (error) {
+        $('debug-output').textContent += `⚠ ${error.message}\n`;
+        setStatus(`Spuštění selhalo: ${error.message}`);
+      }
+    }
+
+    async function refreshGit() {
+      if (!root) {
+        $('source-status').textContent = 'Nejprve otevři složku projektu.';
+        return;
+      }
+      $('source-status').textContent = 'Načítám stav Git…';
+      try {
+        const result = await api.gitStatus(root);
+        $('source-status').textContent = result.error || result.text;
+      } catch (error) {
+        $('source-status').textContent = `Chyba Git: ${error.message}`;
+      }
+    }
+
+    document.querySelectorAll('#activity [data-view]').forEach(button => {
+      button.onclick = () => {
+        document.querySelectorAll('#activity [data-view]').forEach(item => item.classList.toggle('active', item === button));
+        document.querySelectorAll('.side-view').forEach(view => view.classList.remove('active'));
+        const view = button.dataset.view === 'explorer'
+          ? $('tree')
+          : $(`${button.dataset.view}-view`);
+        if (view) view.classList.add('active');
+        const titles = { explorer: 'PRŮZKUMNÍK', search: 'HLEDAT', source: 'SPRÁVA ZDROJŮ', debug: 'SPUSTIT A LADIT', extensions: 'ROZŠÍŘENÍ' };
+        $('side-title').textContent = titles[button.dataset.view] || 'PRŮZKUMNÍK';
+      };
+    });
+
+    let searchTimer;
+    $('project-search').oninput = () => {
+      const query = $('project-search').value.toLowerCase();
+      $('search-results').textContent = '';
+      if (!query || !root || !window.api) return;
+      clearTimeout(searchTimer);
+      searchTimer = setTimeout(async () => {
+        try {
+          const matches = await api.searchFiles(root, query);
+          matches.forEach(file => {
+            const result = document.createElement('div');
+            result.className = 'file-row';
+            result.textContent = file.path.replace(root, '').replace(/^[\\/]/, '');
+            result.title = file.path;
+            result.onclick = () => openFile(file);
+            $('search-results').appendChild(result);
+          });
+        } catch (error) {
+          $('search-results').textContent = `Vyhledávání selhalo: ${error.message}`;
+        }
+      }, 180);
+    };
+    const commands = [
+      { label: 'Soubor: Otevřít složku…', shortcut: 'Ctrl+O', run: openFolder },
+      { label: 'Chat: Nový chat', shortcut: '', run: newChat },
+      { label: 'Chat: Zaměřit zprávu', shortcut: '', run: () => $('q').focus() },
+      { label: 'Zobrazení: Zobrazit / skrýt panel', shortcut: 'Ctrl+J', run: () => $('bottom-panel').classList.toggle('collapsed') },
+      { label: 'AI: Nastavit profil a poskytovatele', shortcut: '', run: openSettings },
+      { label: 'AI: Nastavit API klíč', shortcut: '', run: () => $('key').click() },
+      { label: 'Spustit: Aktuální soubor', shortcut: 'F5', run: runCurrentFile },
+      { label: 'Git: Obnovit stav', shortcut: '', run: refreshGit }
+    ];
+    let paletteEntries = [];
+    function renderPalette(query) {
+      const list = $('command-items');
+      list.textContent = '';
+      paletteEntries = [];
+      const needle = query.trim().toLowerCase();
+      commands.filter(item => item.label.toLowerCase().includes(needle)).forEach(item => paletteEntries.push(item));
+      const render = () => {
+        paletteEntries.forEach((item, index) => {
+          const button = document.createElement('button');
+          button.className = `command-item${index === 0 ? ' active' : ''}`;
+          button.innerHTML = '';
+          const label = document.createElement('span');
+          label.textContent = item.label;
+          const shortcut = document.createElement('small');
+          shortcut.textContent = item.shortcut || '';
+          button.append(label, shortcut);
+          button.onclick = () => {
+            $('command-palette').hidden = true;
+            item.run();
+          };
+          list.appendChild(button);
+        });
+      };
+      render();
+      if (root && window.api && needle.length >= 2 && !needle.startsWith('>')) {
+        api.searchFiles(root, needle).then(files => {
+          const known = new Set(paletteEntries.map(item => item.path));
+          files.filter(file => !known.has(file.path)).forEach(file => {
+            paletteEntries.push({
+              label: `Soubor: ${file.path.replace(root, '').replace(/^[\\/]/, '')}`,
+              path: file.path,
+              run: () => openFile(file)
+            });
+          });
+          list.textContent = '';
+          render();
+        }).catch(error => setStatus(`Hledání souboru selhalo: ${error.message}`));
+      }
+    }
+    function showCommandPalette(query) {
+      $('command-palette').hidden = false;
+      $('command-input').value = query || '';
+      renderPalette(query || '');
+      $('command-input').focus();
+    }
+    $('command-center').onclick = () => showCommandPalette($('command-center').value);
+    $('command-center').oninput = () => showCommandPalette($('command-center').value);
+    $('command-center').onkeydown = event => {
+      if (event.key === 'Enter') {
+        event.preventDefault();
+        showCommandPalette($('command-center').value);
+      }
+      if (event.key === 'Escape') $('command-palette').hidden = true;
+    };
+    $('command-input').oninput = () => renderPalette($('command-input').value);
+    $('command-input').onkeydown = event => {
+      if (event.key === 'Escape') {
+        $('command-palette').hidden = true;
+      } else if (event.key === 'Enter') {
+        event.preventDefault();
+        const first = $('command-items').querySelector('.command-item');
+        if (first) first.click();
+      } else if (event.key === 'ArrowDown' || event.key === 'ArrowUp') {
+        event.preventDefault();
+        const items = [...$('command-items').querySelectorAll('.command-item')];
+        if (!items.length) return;
+        const current = items.findIndex(item => item.classList.contains('active'));
+        const next = event.key === 'ArrowDown'
+          ? (current + 1) % items.length
+          : (current <= 0 ? items.length - 1 : current - 1);
+        items.forEach((item, index) => item.classList.toggle('active', index === next));
+        items[next].scrollIntoView({ block: 'nearest' });
+      }
+    };
+    document.addEventListener('pointerdown', event => {
+      if (!$('command-palette').hidden && !event.target.closest('#command-palette') &&
+          !event.target.closest('#command-center')) $('command-palette').hidden = true;
+    });
+    $('profile-open').onclick = $('profile-activity').onclick = $('open-settings').onclick = openSettings;
+    $('chat-close').onclick = () => setChatVisible(false);
+    $('chat-open').onclick = () => setChatVisible($('main').classList.contains('chat-hidden'));
+    $('settings-close').onclick = $('settings-cancel').onclick = () => $('settings-dialog').close();
+    $('changes-close').onclick = $('changes-cancel').onclick = () => {
+      $('changes-dialog').close();
+      pendingProjectChanges = null;
+    };
+    $('changes-apply').onclick = () => {
+      if (pendingProjectChanges) applyProposedChanges(pendingProjectChanges);
+    };
+    $('qwen-download').onclick = $('setup-download-lm').onclick = () => openQwenLink('https://lmstudio.ai/download');
+    $('qwen-model-library').onclick = $('setup-qwen-models').onclick = () => openQwenLink('https://huggingface.co/Qwen');
+    $('qwen-check').onclick = checkQwenConnection;
+    $('open-qwen-setup').onclick = openQwenSetup;
+    $('qwen-setup-close').onclick = $('qwen-setup-done').onclick = () => $('qwen-setup-dialog').close();
+    $('setup-open-settings').onclick = () => {
+      $('qwen-setup-dialog').close();
+      openSettings();
+    };
+    $('check-app-updates').onclick = async () => {
+      try {
+        renderUpdateStatus(await api.checkForUpdates());
+      } catch (error) {
+        renderUpdateStatus({ state: 'error', message: `Kontrola aktualizací selhala: ${error.message}` });
+      }
+    };
+    $('install-app-update').onclick = async () => {
+      try {
+        await api.installUpdate();
+      } catch (error) {
+        setStatus(`Aktualizaci se nepodařilo nainstalovat: ${error.message}`);
+      }
+    };
+    $('open-app-releases').onclick = () => openQwenLink('https://github.com/wraxczsk1/discord-bot/releases');
+    $('provider-select').onchange = updateProviderSettings;
+    $('settings-save').onclick = () => {
+      profileName = $('profile-name').value.trim() || 'Vývojář';
+      const theme = $('theme-select').value;
+      const provider = $('provider-select').value;
+      localStorage.setItem('profileName', profileName);
+      localStorage.setItem('theme', theme);
+      localStorage.setItem('model', $('profile-model').value);
+      localStorage.setItem('provider', provider);
+      localStorage.setItem('qwenUrl', $('qwen-url').value.trim() || 'http://127.0.0.1:1234');
+      localStorage.setItem('qwenModel', $('qwen-model').value.trim());
+      localStorage.setItem('agentSkills', JSON.stringify([...$('agent-skills').selectedOptions].map(option => option.value)));
+      $('model').value = $('profile-model').value;
+      if (ed) monaco.editor.setTheme(theme === 'light' ? 'vs' : 'vs-dark');
+      $('agent-profile').value = localStorage.getItem('agentProfile') || 'developer';
+      document.body.classList.toggle('theme-light', theme === 'light');
+      document.body.classList.toggle('theme-github', theme === 'github');
+      updateProviderSettings();
+      $('settings-dialog').close();
+      if (activeChat) {
+        renderVisibleMessages();
+      }
+      setStatus(provider === 'qwen'
+        ? 'Profil uložen · Lokální Qwen'
+        : 'Profil uložen · Anthropic API');
+      if (provider === 'qwen') checkQwenConnection();
+    };
+    $('model').onchange = () => {
+      $('profile-model').value = $('model').value;
+      localStorage.setItem('model', $('model').value);
+    };
+    $('agent-profile').onchange = () => localStorage.setItem('agentProfile', $('agent-profile').value);
+    $('agent-skills').onchange = () => {
+      localStorage.setItem('agentSkills', JSON.stringify([...$('agent-skills').selectedOptions].map(option => option.value)));
+      setStatus('Dovednosti AI uloženy');
+    };
+    $('theme-select').onchange = () => {
+      const theme = $('theme-select').value;
+      document.body.classList.toggle('theme-light', theme === 'light');
+      document.body.classList.toggle('theme-github', theme === 'github');
+      if (ed) monaco.editor.setTheme(theme === 'light' ? 'vs' : 'vs-dark');
+    };
+    $('attach-folder').onclick = addFolder;
+    $('attach-link').onclick = addLink;
+    ['composer', 'attachment-list', 'msgs'].forEach(id => {
+      const target = $(id);
+      target.addEventListener('dragover', event => {
+        event.preventDefault();
+        target.classList.add('drop-target');
+      });
+      target.addEventListener('dragleave', () => target.classList.remove('drop-target'));
+      target.addEventListener('drop', event => {
+        event.preventDefault();
+        target.classList.remove('drop-target');
+        const files = event.dataTransfer.files;
+        if (files && files.length) {
+          if (window.api) addDroppedFiles(files);
+          else setStatus('Přílohy fungují po spuštění aplikace přes npm start.');
+          return;
+        }
+        const url = event.dataTransfer.getData('text/uri-list') || event.dataTransfer.getData('text/plain');
+        if (url && /^https?:\/\//i.test(url.trim())) {
+          const parsed = new URL(url.trim());
+          if (pendingAttachments.length < 5) {
+            pendingAttachments.push({ url: parsed.href, name: parsed.hostname, size: 0 });
+            renderAttachments();
+          } else setStatus('Najednou lze připojit nejvýše 5 položek.');
+        }
+      });
+    });
+    $('run-file').onclick = $('run-toolbar').onclick = $('run-panel').onclick = runCurrentFile;
+    $('stop-file').onclick = $('stop-panel').onclick = async () => {
+      const stopped = await api.stopRun();
+      if (!stopped) setStatus('Žádný proces neběží');
+    };
+    $('refresh-git').onclick = refreshGit;
+    $('toggle-panel').onclick = () => $('bottom-panel').classList.toggle('collapsed');
+    $('hide-panel').onclick = () => $('bottom-panel').classList.add('collapsed');
+    document.querySelectorAll('#bottom-tabs button[data-panel]').forEach(button => {
+      button.onclick = () => {
+        document.querySelectorAll('#bottom-tabs button[data-panel]').forEach(item => item.classList.toggle('active', item === button));
+        const descriptions = {
+          terminal: 'Výstup spuštěného programu se zobrazí zde.',
+          problems: 'Diagnostika editoru se zobrazuje přímo v otevřeném souboru.',
+          output: 'Výstupní zprávy aplikace.',
+          'debug-console': 'Ladicí konzole. Pro spuštění použij tlačítko Spustit soubor.'
+        };
+        if (!$('debug-output').textContent.trim()) $('debug-output').textContent = descriptions[button.dataset.panel];
+        $('bottom-panel').classList.remove('collapsed');
+      };
+    });
+    $('menu-file').onclick = () => showCommandPalette('');
+    $('menu-edit').onclick = () => $('q').focus();
+    $('menu-view').onclick = () => $('bottom-panel').classList.toggle('collapsed');
+    $('menu-run').onclick = runCurrentFile;
+    $('menu-help').onclick = () => setStatus('Nápověda: otevři projekt, nastav API klíč a použij chat nebo panel Spustit a ladit.');
+    document.addEventListener('keydown', event => {
+      if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 'p') {
+        event.preventDefault();
+        showCommandPalette('');
+      }
+      if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 'j') {
+        event.preventDefault();
+        $('bottom-panel').classList.toggle('collapsed');
+      }
+      if (event.key === 'F5') {
+        event.preventDefault();
+        runCurrentFile();
+      }
+    });
+    if (window.api && typeof api.onRunOutput === 'function') {
+      api.onRunOutput(data => {
+        $('debug-output').textContent += data.text;
+        $('debug-output').scrollTop = $('debug-output').scrollHeight;
+        if (data.type === 'start') $('bottom-panel').classList.remove('collapsed');
+      });
+    }
+    if (window.api && typeof api.onUpdateStatus === 'function') {
+      api.onUpdateStatus(renderUpdateStatus);
+    }
+
+    $('key').onclick = async () => {
+      const key = prompt('Vlož Anthropic API klíč. Uloží se na tomto zařízení.');
+      if (key && key.trim()) {
+        await api.setKey(key.trim());
+        setStatus('API klíč uložen');
+      }
+    };
+    $('attach').onclick = addAttachments;
+    $('cancel-edit').onclick = () => cancelMessageEdit(true);
+    $('go').onclick = () => {
+      const value = $('q').value;
+      const message = editingMessage;
+      if (message && !value.trim() && !(Array.isArray(message.attachments) && message.attachments.length)) {
+        setStatus('Upravená zpráva nesmí být prázdná.');
+        return;
+      }
+      $('q').value = '';
+      if (message) {
+        const index = activeChat.messages.indexOf(message);
+        if (index < 0) {
+          cancelMessageEdit(false);
+          setStatus('Upravenou zprávu se nepodařilo najít.');
+          return;
+        }
+        activeChat.messages.splice(index + 1);
+        const originalAttachments = Array.isArray(message.attachments) ? message.attachments : [];
+        cancelMessageEdit(false);
+        renderMessages();
+        persistChat();
+        ask(value, undefined, originalAttachments, false, message);
+      } else {
+        ask(value);
+      }
+    };
+    $('q').onkeydown = event => {
+      if (event.key === 'Enter' && !event.shiftKey) {
+        event.preventDefault();
+        $('go').click();
+      }
+    };
+    $('q').oninput = () => {
+      $('q').style.height = 'auto';
+      $('q').style.height = `${Math.min($('q').scrollHeight, 240)}px`;
+    };
+    $('new-chat').onclick = newChat;
+    $('chat-select').onchange = () => {
+      const chat = chats.find(item => item.id === $('chat-select').value);
+      if (chat) showChat(chat);
+    };
+    $('delete-chat').onclick = async () => {
+      if (!activeChat) return;
+      await api.deleteChat(activeChat.id);
+      chats = chats.filter(chat => chat.id !== activeChat.id);
+      if (chats.length) showChat(chats[0]);
+      else await newChat();
+    };
+    $('clear-chat').onclick = async () => {
+      if (!activeChat) return;
+      activeChat.messages = [];
+      activeChat.title = 'Nový chat';
+      showChat(activeChat);
+      await persistChat();
+      setStatus('Zprávy chatu vymazány');
+    };
+    $('open').onclick = $('welcome-open').onclick = $('welcome-folder').onclick = openFolder;
+    $('new-file').onclick = () => createProjectEntry(false);
+    $('new-folder').onclick = () => createProjectEntry(true);
+    $('welcome-command').onclick = () => showCommandPalette('');
+    $('welcome-settings').onclick = openSettings;
+    $('menu-chat').onclick = () => newChat();
+    document.querySelectorAll('.quick-actions button[data-p]').forEach(button => {
+      button.onclick = () => ask(button.dataset.p);
+    });
+    $('review-project').onclick = () => ask('Proveď důkladnou revizi projektu. Shrň architekturu a účel, identifikuj chyby, bezpečnostní a provozní rizika, chybějící testy a nejdůležitější zlepšení. Každé zjištění opři o konkrétní soubor a jasně rozliš jistotu od hypotézy.', { projectReview: true });
+    $('edit-project').onclick = () => ask('Proveď požadované změny projektu popsané v této zprávě. Projdi relevantní zdrojové soubory, proveď pouze nutné bezpečné změny a připrav celý obsah každého změněného souboru k ruční kontrole.', { projectReview: true, projectEdit: true });
+    if (window.api) {
+      api.getAppInfo().then(info => {
+        $('app-version').textContent = info.version;
+        renderUpdateStatus(info.updateStatus);
+        if (!info.packaged) $('update-status').textContent = 'Režim vývoje: pro instalaci vytvoř vydání přes npm run dist.';
+      }).catch(error => {
+        $('app-version').textContent = 'neznámá';
+        setStatus(`Verzi aplikace se nepodařilo načíst: ${error.message}`);
+      });
+      loadChats().catch(error => {
+        activeChat = makeChat();
+        chats = [activeChat];
+        showChat(activeChat);
+        setStatus(`Historii chatu se nepodařilo načíst: ${error.message}`);
+      });
+      api.hasKey().then(hasKey => {
+        if (!hasKey) {
+          localStorage.setItem('provider', 'qwen');
+          $('provider-select').value = 'qwen';
+          updateProviderSettings();
+        }
+        return api.checkQwen(
+          localStorage.getItem('qwenUrl') || 'http://127.0.0.1:1234',
+          localStorage.getItem('qwenModel') || ''
+        );
+      }).then(status => {
+        qwenUnavailable = !status.available || !status.modelAvailable;
+        if (!status.available) {
+          showQwenAlert('Qwen server neběží. Otevři Nastavit AI, stáhni LM Studio a spusť Local Server.');
+          setStatus('Qwen server není připojen · otevři průvodce přes „Nastavit AI“.');
+        } else if (status.models.length && !localStorage.getItem('qwenModel')) {
+          localStorage.setItem('qwenModel', status.models[0]);
+          $('qwen-model').value = status.models[0];
+          $('connection-alert').hidden = true;
+          setStatus(`Qwen připraven · ${status.models[0]}`);
+        } else if (!status.modelAvailable) {
+          showQwenAlert('Server běží, ale zvolený model není načten. Ověř ID modelu v nastavení.');
+          setStatus('Qwen server běží, ale zvolený model není načten. Nech ID modelu prázdné pro automatický výběr.');
+        } else {
+          $('connection-alert').hidden = true;
+          setStatus('Qwen připraven · bez API klíče');
+        }
+        if ((localStorage.getItem('provider') || 'qwen') !== 'qwen') $('connection-alert').hidden = true;
+        $('startup-status').textContent = status.available ? 'Lokální AI zkontrolována' : 'Editor připraven · AI čeká na připojení';
+        providerReady = true;
+        finishStartup();
+      }).catch(error => {
+        showQwenAlert('Kontrola připojení selhala. Spusť místní Qwen server a zkus to znovu.');
+        setStatus(`Kontrola lokální AI selhala: ${error.message}`);
+        $('startup-status').textContent = 'Editor připraven · AI čeká na připojení';
+        providerReady = true;
+        finishStartup();
+      });
+    } else {
+      activeChat = makeChat();
+      chats = [activeChat];
+      showChat(activeChat);
+      setStatus('Spusť aplikaci přes npm start. V prohlížeči samotném není dostupné bezpečné API pro AI.');
+      $('startup-status').textContent = 'Aplikace otevřena v režimu náhledu';
+      finishStartup();
+    }
+  </script>
+</body>
+</html>
