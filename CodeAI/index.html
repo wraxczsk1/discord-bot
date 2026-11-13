@@ -228,7 +228,17 @@
     .code-block pre { max-block-size: 320px; margin: 0; padding: 9px; overflow: auto; font: 12px/1.5 Consolas, monospace; }
     .code-block button { margin: 0 8px 8px; }
     .code-save-feedback { display: block; min-block-size: 1em; margin: 0 8px 7px; color: var(--muted); font-size: 11px; }
-    .quick-actions { display: flex; flex-wrap: wrap; gap: 5px; padding: 5px 10px 8px; border-block-start: 1px solid var(--line); }
+    .code-save-feedback[hidden] { display: none; }
+    .quick-actions { flex: 0 0 auto; padding: 5px 10px; border-block-start: 1px solid var(--line); }
+    .quick-actions summary { color: var(--muted); font-size: 11px; cursor: pointer; list-style: none; user-select: none; }
+    .quick-actions summary::-webkit-details-marker { display: none; }
+    .quick-actions summary::before { content: '▸'; display: inline-block; inline-size: 15px; }
+    .quick-actions[open] summary::before { content: '▾'; }
+    .quick-actions-list { display: flex; flex-wrap: wrap; gap: 5px; padding-block-start: 6px; }
+    .attachment-menu { display: grid; gap: 5px; }
+    #attachment-actions summary { cursor: pointer; list-style: none; text-align: center; }
+    #attachment-actions summary::-webkit-details-marker { display: none; }
+    .attachment-options { display: grid; gap: 5px; }
     .button {
       min-block-size: 27px;
       padding: 3px 9px;
@@ -564,23 +574,31 @@
         <ol id="ai-todo-list"></ol>
       </section>
       <div id="msgs" aria-live="polite"></div>
-      <div class="quick-actions">
-        <button class="button" data-p="Vysvětli aktuální soubor nebo vybraný kód. Uveď nejasnosti a konkrétní příklady.">Vysvětli</button>
-        <button class="button" data-p="Proveď pečlivou kontrolu aktuálního souboru, uveď chyby a navrhni opravu.">Zkontroluj</button>
-        <button class="button" data-p="Navrhni bezpečný a čitelný refaktoring aktuálního souboru.">Refaktoruj</button>
-        <button class="button" data-p="Navrhni smysluplné testy pro aktuální soubor.">Testy</button>
-        <button class="button" id="review-project">Revize projektu</button>
-        <button class="button" id="edit-project">Navrhnout úpravy projektu</button>
-      </div>
+      <details class="quick-actions" id="quick-actions">
+        <summary>Rychlé akce</summary>
+        <div class="quick-actions-list">
+          <button class="button" data-p="Vysvětli aktuální soubor nebo vybraný kód. Uveď nejasnosti a konkrétní příklady.">Vysvětli</button>
+          <button class="button" data-p="Proveď pečlivou kontrolu aktuálního souboru, uveď chyby a navrhni opravu.">Zkontroluj</button>
+          <button class="button" data-p="Navrhni bezpečný a čitelný refaktoring aktuálního souboru.">Refaktoruj</button>
+          <button class="button" data-p="Navrhni smysluplné testy pro aktuální soubor.">Testy</button>
+          <button class="button" id="review-project">Revize projektu</button>
+          <button class="button" id="edit-project">Navrhnout úpravy projektu</button>
+        </div>
+      </details>
       <div id="attachment-list"></div>
       <div id="composer">
         <div id="edit-mode" hidden><span>Upravuješ odeslanou zprávu; odpovědi za ní budou nahrazeny.</span><button class="button" id="cancel-edit">Zrušit úpravu</button></div>
         <div id="composer-row">
           <textarea id="q" placeholder="Napiš otázku… (Enter odešle, Shift+Enter nový řádek)" aria-label="Zpráva"></textarea>
           <div id="composer-actions">
-            <button class="button" id="attach" title="Připojit soubory až do 10 GB"><svg class="icon" style="display:inline-block;vertical-align:middle"><use href="#i-attach"/></svg> Soubor</button>
-            <button class="button" id="attach-folder" title="Připojit složku"><svg class="icon" style="display:inline-block;vertical-align:middle"><use href="#i-folder"/></svg> Složka</button>
-            <button class="button" id="attach-link" title="Připojit odkaz"><svg class="icon" style="display:inline-block;vertical-align:middle"><use href="#i-link"/></svg> Odkaz</button>
+            <details class="attachment-menu" id="attachment-actions">
+              <summary class="button" title="Připojit soubor, složku nebo odkaz">＋ Připojit</summary>
+              <div class="attachment-options">
+                <button class="button" id="attach" title="Připojit soubory až do 10 GB"><svg class="icon" style="display:inline-block;vertical-align:middle"><use href="#i-attach"/></svg> Soubor</button>
+                <button class="button" id="attach-folder" title="Připojit složku"><svg class="icon" style="display:inline-block;vertical-align:middle"><use href="#i-folder"/></svg> Složka</button>
+                <button class="button" id="attach-link" title="Připojit odkaz"><svg class="icon" style="display:inline-block;vertical-align:middle"><use href="#i-link"/></svg> Odkaz</button>
+              </div>
+            </details>
             <button class="button primary" id="go"><svg class="icon" style="display:inline-block;vertical-align:middle"><use href="#i-send"/></svg> <span id="go-label">Odeslat</span></button>
             <button class="button" id="stop-ai" hidden>■ Zastavit AI</button>
           </div>
@@ -1209,7 +1227,6 @@
           return;
         }
         const infoLine = (chunk.match(/^([^\n]*)\n/) || [])[1] || '';
-        const language = infoLine.trim().split(/\s+/)[0].toLowerCase();
         const code = chunk.replace(/^[^\n]*\n/, '').replace(/\n$/, '');
         const generatedFilePath = inferGeneratedFilePath(chunks[index - 1] || '', infoLine);
         const block = document.createElement('div');
@@ -1217,33 +1234,25 @@
         const pre = document.createElement('pre');
         pre.textContent = code;
         const save = document.createElement('button');
-        save.className = 'button';
-        save.textContent = 'Uložit jako…';
-        save.onclick = async () => {
-          const extension = ({ javascript: 'js', js: 'js', typescript: 'ts', ts: 'ts', python: 'py', py: 'py', json: 'json', html: 'html', css: 'css', markdown: 'md', md: 'md' })[language.trim().toLowerCase()] || 'txt';
-          try {
-            if (await api.saveGeneratedFile({ name: `ai-output.${extension}`, content: code })) setStatus('Soubor uložen');
-          } catch (error) {
-            setStatus(`Soubor se nepodařilo uložit: ${error.message}`);
-          }
-        };
-        const insert = document.createElement('button');
-        insert.className = 'button primary';
-        insert.textContent = 'Vložit do složky';
-        insert.title = `Uložit jako ${generatedFilePath}`;
+        save.className = 'button primary';
+        save.textContent = root ? 'Vložit do složky' : 'Uložit jako…';
+        save.title = `Uložit jako ${generatedFilePath}`;
         const saveFeedback = document.createElement('span');
         saveFeedback.className = 'code-save-feedback';
         saveFeedback.setAttribute('role', 'status');
-        insert.onclick = async () => {
-          if (!root) {
-            saveFeedback.textContent = 'Nejprve otevři složku projektu.';
-            setStatus(saveFeedback.textContent);
-            return;
-          }
-          insert.disabled = true;
-          insert.textContent = 'Ukládám…';
-          saveFeedback.textContent = `Ukládám ${generatedFilePath} do projektu…`;
+        saveFeedback.hidden = true;
+        save.onclick = async () => {
+          save.disabled = true;
+          saveFeedback.hidden = false;
+          save.textContent = 'Ukládám…';
           try {
+            if (!root) {
+              const saved = await api.saveGeneratedFile({ name: generatedFilePath, content: code });
+              saveFeedback.textContent = saved ? 'Soubor uložen.' : 'Uložení bylo zrušeno.';
+              if (saved) setStatus(saveFeedback.textContent);
+              return;
+            }
+            saveFeedback.textContent = `Ukládám ${generatedFilePath} do projektu…`;
             const relativePath = generatedFilePath.replace(/\\/g, '/');
             const basePath = relativePath.includes('/') ? root : (selectedDirectory || root);
             const result = await api.saveProjectFile(basePath, relativePath, code);
@@ -1260,11 +1269,11 @@
             saveFeedback.textContent = `Uložení selhalo: ${error.message}`;
             setStatus(saveFeedback.textContent);
           } finally {
-            insert.disabled = false;
-            insert.textContent = 'Vložit do složky';
+            save.disabled = false;
+            save.textContent = root ? 'Vložit do složky' : 'Uložit jako…';
           }
         };
-        block.append(pre, save, insert, saveFeedback);
+        block.append(pre, save, saveFeedback);
         element.appendChild(block);
       });
     }
@@ -1704,6 +1713,7 @@
       let streamRenderPending = false;
       progressPanel.hidden = false;
       progressPanel.dataset.busy = 'true';
+      progressPanel.dataset.requestId = requestId;
       $('ai-progress-status').textContent = 'Připravuji požadavek…';
       progressList.textContent = '';
       const renderProgressItems = () => {
@@ -1842,6 +1852,11 @@
       } finally {
         unsubscribeProgress();
         progressPanel.dataset.busy = 'false';
+        setTimeout(() => {
+          if (progressPanel.dataset.requestId === requestId && progressPanel.dataset.busy !== 'true') {
+            progressPanel.hidden = true;
+          }
+        }, 1800);
         finishChatRequest();
       }
     }
@@ -2276,6 +2291,12 @@
     $('menu-chat').onclick = () => newChat();
     document.querySelectorAll('.quick-actions button[data-p]').forEach(button => {
       button.onclick = () => ask(button.dataset.p);
+    });
+    $('quick-actions').addEventListener('click', event => {
+      if (event.target.closest('button')) $('quick-actions').open = false;
+    });
+    $('attachment-actions').addEventListener('click', event => {
+      if (event.target.closest('button')) $('attachment-actions').open = false;
     });
     $('review-project').onclick = () => ask('Proveď důkladnou revizi projektu. Shrň architekturu a účel, identifikuj chyby, bezpečnostní a provozní rizika, chybějící testy a nejdůležitější zlepšení. Každé zjištění opři o konkrétní soubor a jasně rozliš jistotu od hypotézy.', { projectReview: true });
     $('edit-project').onclick = () => ask('Proveď požadované změny projektu popsané v této zprávě. Projdi relevantní zdrojové soubory, proveď pouze nutné bezpečné změny a připrav celý obsah každého změněného souboru k ruční kontrole.', { projectReview: true, projectEdit: true });
