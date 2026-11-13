@@ -4,6 +4,7 @@ contextBridge.exposeInMainWorld('api', {
   getAppInfo: () => ipc.invoke('getAppInfo'),
   checkForUpdates: () => ipc.invoke('checkForUpdates'),
   installUpdate: () => ipc.invoke('installUpdate'),
+  cancelAI: () => ipc.send('cancelAI'),
   pickFiles: () => ipc.invoke('pickFiles'),
   describeFiles: paths => ipc.invoke('describeFiles', paths),
   getDroppedFilePaths: files => Array.from(files, file => webUtils.getPathForFile(file)).filter(Boolean),
@@ -21,6 +22,7 @@ contextBridge.exposeInMainWorld('api', {
   setKey: k => ipc.invoke('setKey', k),
   hasKey: () => ipc.invoke('hasKey'),
   checkQwen: (url, model) => ipc.invoke('checkQwen', { url, model }),
+  setQwenPriority: (url, enabled) => ipc.invoke('setQwenPriority', { url, enabled }),
   listChats: () => ipc.invoke('listChats'),
   saveChat: chat => ipc.invoke('saveChat', chat),
   deleteChat: id => ipc.invoke('deleteChat', id),
@@ -33,6 +35,11 @@ contextBridge.exposeInMainWorld('api', {
     const listener = (event, data) => callback(data);
     ipc.on('runOutput', listener);
     return () => ipc.removeListener('runOutput', listener);
+  },
+  onAIProgress: callback => {
+    const listener = (event, data) => callback(data);
+    ipc.on('aiProgress', listener);
+    return () => ipc.removeListener('aiProgress', listener);
   },
   onUpdateStatus: callback => {
     const listener = (event, status) => callback(status);

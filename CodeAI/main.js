@@ -2,8 +2,9 @@ const { app, BrowserWindow, ipcMain, dialog, safeStorage, shell } = require('ele
 const fs = require('fs');
 const path = require('path');
 const yauzl = require('yauzl');
-const { spawn, spawnSync } = require('child_process');
+const { spawn, spawnSync, execFile } = require('child_process');
 const { mergeConsecutiveMessages } = require('./chat-utils');
+const { readOpenAICompatibleResponse } = require('./ai-stream');
 const { randomUUID } = require('crypto');
 const { autoUpdater } = require('electron-updater');
 
@@ -11,6 +12,8 @@ const MODEL = 'claude-sonnet-5-5';
 const MAX_FILE_SIZE = 10 * 1024 * 1024 * 1024;
 const MAX_INLINE_FILE_SIZE = 5 * 1024 * 1024;
 const MAX_INLINE_TOTAL_SIZE = 8 * 1024 * 1024;
+const QWEN_TIMEOUT_MS = 15 * 60 * 1000;
+const QWEN_ECONOMY_LIMITS = { historyMessages: 6, textChars: 16000, inlineBytes: 3 * 1024 * 1024 };
 const MAX_TEXT_CHARS = 100000;
 const MAX_FOLDER_FILES = 80;
 const MAX_ARCHIVE_TEXT = 256 * 1024;
@@ -21,6 +24,12 @@ let debugProcess = null;
 let mainWindow = null;
 let updateStatus = { state: 'idle', message: 'Automatické aktualizace čekají na vydání aplikace.' };
 const workspaceRoots = new Map();
+const aiRequests = new Map();
+
+ipcMain.on('cancelAI', e => {
+  const controller = aiRequests.get(e.sender.id);
+  if (controller) controller.abort();
+});
 
 function setUpdateStatus(state, message, version) {
   updateStatus = { state, message, version: version || null };
@@ -197,25 +206,47 @@ ipcMain.handle('saveGeneratedFile', async (e, { name, content }) => {
 ipcMain.handle('saveProjectFile', async (e, { parentPath, name, content }) => {
   const parent = resolveWorkspacePath(e.sender, parentPath, false);
   if (!fs.statSync(parent).isDirectory()) throw new Error('Vybraná cesta není složka.');
-  const fileName = String(name || '').trim();
-  if (!fileName || fileName === '.' || fileName === '..' || /[\\/<>:"|?*\x00-\x1f]/.test(fileName)) {
-    throw new Error('Zadej platný název souboru bez oddělovačů cesty.');
+  const relativePath = String(name || '').trim().replace(/\\/g, '/');
+  const segments = relativePath.split('/');
+  if (!relativePath || path.isAbsolute(relativePath) ||
+      segments.some(segment => !segment || segment === '.' || segment === '..' || /[<>:"|?*\x00-\x1f]/.test(segment))) {
+    throw new Error('AI navrhla neplatnou cestu k souboru.');
   }
   if (typeof content !== 'string') throw new Error('Obsah souboru není platný text.');
-  const selection = await dialog.showSaveDialog(mainWindow, {
-    title: 'Uložit soubor do projektu',
-    buttonLabel: 'Uložit do projektu',
-    defaultPath: path.join(parent, fileName)
-  });
-  if (selection.canceled || !selection.filePath) return null;
-  const target = resolveWorkspacePath(e.sender, selection.filePath, true);
-  const targetParent = resolveWorkspacePath(e.sender, path.dirname(target), false);
-  if (!fs.statSync(targetParent).isDirectory()) throw new Error('Cílové umístění není složka projektu.');
+  let targetParent = parent;
+  for (const directoryName of segments.slice(0, -1)) {
+    const directoryPath = path.resolve(targetParent, directoryName);
+    if (!pathIsWithin(workspaceRoots.get(e.sender.id), directoryPath)) {
+      throw new Error('Cílová složka musí zůstat uvnitř otevřeného projektu.');
+    }
+    if (!fs.existsSync(directoryPath)) fs.mkdirSync(directoryPath);
+    targetParent = resolveWorkspacePath(e.sender, directoryPath, false);
+    if (!fs.statSync(targetParent).isDirectory()) {
+      throw new Error(`Cílová cesta „${directoryName}“ není složka.`);
+    }
+  }
+  const fileName = segments[segments.length - 1];
+  const target = resolveWorkspacePath(e.sender, path.join(targetParent, fileName), true);
+  let overwrite = false;
   if (fs.existsSync(target)) {
     if (!fs.statSync(target).isFile()) throw new Error('Soubor se stejným názvem už existuje jako složka.');
+    const confirmation = await dialog.showMessageBox(mainWindow, {
+      type: 'warning',
+      buttons: ['Přepsat soubor', 'Zrušit'],
+      defaultId: 1,
+      cancelId: 1,
+      title: 'Soubor už existuje',
+      message: `AI chce uložit „${relativePath}“, ale soubor už existuje. Přepsat ho?`
+    });
+    if (confirmation.response !== 0) return null;
+    overwrite = true;
   }
-  fs.writeFileSync(target, content, { encoding: 'utf8', flag: 'w' });
-  return { path: target, name: path.basename(target) };
+  fs.writeFileSync(target, content, { encoding: 'utf8', flag: overwrite ? 'w' : 'wx' });
+  return {
+    path: target,
+    name: path.basename(target),
+    relativePath: path.relative(parent, target).split(path.sep).join('/')
+  };
 });
 
 ipcMain.handle('openExternal', async (e, rawUrl) => {
@@ -546,6 +577,46 @@ ipcMain.handle('checkQwen', async (e, { url, model }) => {
   }
 });
 
+ipcMain.handle('setQwenPriority', async (e, { url, enabled }) => {
+  let base;
+  try {
+    base = new URL(url || 'http://127.0.0.1:1234');
+  } catch {
+    throw new Error('Neplatná adresa místního Qwen serveru.');
+  }
+  if (!['localhost', '127.0.0.1', '[::1]'].includes(base.hostname) || base.protocol !== 'http:') {
+    throw new Error('Prioritu lze upravit pouze u místního HTTP serveru.');
+  }
+  if (process.platform !== 'win32') {
+    return { applied: false, message: 'Automatické omezení priority je dostupné jen ve Windows; nastav CPU vlákna přímo v Qwen serveru.' };
+  }
+  const port = Number(base.port || 80);
+  if (!Number.isInteger(port) || port < 1 || port > 65535) throw new Error('Neplatný port Qwen serveru.');
+  const priority = enabled ? 'BelowNormal' : 'Normal';
+  const script = `$ErrorActionPreference='Stop'; $owners=Get-NetTCPConnection -State Listen -LocalPort ${port} | Select-Object -ExpandProperty OwningProcess -Unique; if (-not $owners) { Write-Output 'NO_LISTENER'; exit 0 }; foreach ($owner in $owners) { $p=Get-Process -Id $owner -ErrorAction Stop; $p.PriorityClass='${priority}'; Write-Output $p.PriorityClass }`;
+  return new Promise(resolve => {
+    execFile('powershell.exe', ['-NoProfile', '-NonInteractive', '-Command', script], {
+      windowsHide: true,
+      timeout: 5000
+    }, (error, stdout, stderr) => {
+      if (error) {
+        resolve({ applied: false, message: `Prioritu Qwen serveru se nepodařilo změnit: ${(stderr || error.message).trim()}` });
+        return;
+      }
+      if (!stdout.includes(priority)) {
+        resolve({ applied: false, message: `Na portu ${port} nebyl nalezen Qwen server; jeho prioritu uprav v nastavení serveru.` });
+        return;
+      }
+      resolve({
+        applied: true,
+        message: enabled
+          ? 'Šetrný režim: Qwen běží s nižší prioritou, aby měl počítač přednost.'
+          : 'Šetrný režim vypnut: Qwen běží s normální prioritou.'
+      });
+    });
+  });
+});
+
 function readTextExcerpt(file, byteLimit) {
   const fd = fs.openSync(file, 'r');
   try {
@@ -694,9 +765,10 @@ async function attachmentContent(attachment) {
   return `Obsah souboru ${attachment.name}${truncated ? ' (zkrácený výňatek)' : ''}:\n${excerpt}`;
 }
 
-async function prepareMessages(messages) {
-  const recent = messages.slice(-10);
-  let textBudget = 48000;
+async function prepareMessages(messages, limits = {}) {
+  const recent = messages.slice(-(limits.historyMessages || 10));
+  let textBudget = limits.textChars || 48000;
+  const inlineByteLimit = limits.inlineBytes || MAX_INLINE_TOTAL_SIZE;
   let inlineBytes = 0;
   const prepared = [];
   for (const message of recent.reverse()) {
@@ -707,7 +779,7 @@ async function prepareMessages(messages) {
         const ext = attachment.path ? path.extname(attachment.path).toLowerCase() : '';
         const isInline = !!imageTypes[ext] || ext === '.pdf';
         const stat = attachment.path && !attachment.directory ? fs.statSync(attachment.path) : null;
-        if (isInline && stat && inlineBytes + stat.size > MAX_INLINE_TOTAL_SIZE) {
+        if (isInline && stat && inlineBytes + stat.size > inlineByteLimit) {
           content.push({ type: 'text', text: `[Příloha ${attachment.name}: vynechána kvůli limitu velikosti multimodálního požadavku.]` });
           continue;
         }
@@ -734,12 +806,32 @@ async function prepareMessages(messages) {
   return mergeConsecutiveMessages(prepared.reverse());
 }
 
-ipcMain.handle('ai', async (e, { system, messages, model, extendedThinking, webSearch, provider, qwenUrl }) => {
+ipcMain.handle('ai', async (e, { system, messages, model, extendedThinking, webSearch, provider, qwenUrl, qwenEconomy, requestId }) => {
+  const previousController = aiRequests.get(e.sender.id);
+  if (previousController) previousController.abort();
+  const controller = new AbortController();
+  const reportProgress = (type, data = {}) => {
+    if (typeof requestId === 'string' && requestId && !e.sender.isDestroyed()) {
+      e.sender.send('aiProgress', { requestId, type, ...data });
+    }
+  };
+  const timeoutMs = provider === 'qwen' ? QWEN_TIMEOUT_MS : 180000;
+  let timedOut = false;
+  aiRequests.set(e.sender.id, controller);
+  const timeoutId = setTimeout(() => {
+    timedOut = true;
+    controller.abort();
+  }, timeoutMs);
   try {
+    reportProgress('status', { text: 'Připravuji kontext a přílohy…' });
     const selectedModel = provider === 'qwen'
       ? (typeof model === 'string' ? model.trim() : '')
       : (typeof model === 'string' && model.trim() ? model.trim() : MODEL);
-    const preparedMessages = await prepareMessages(messages);
+    const useQwenEconomy = provider === 'qwen' && qwenEconomy !== false;
+    const preparedMessages = await prepareMessages(
+      messages,
+      useQwenEconomy ? QWEN_ECONOMY_LIMITS : undefined
+    );
     if (provider === 'qwen') {
       const base = new URL(qwenUrl || 'http://127.0.0.1:1234');
       const isLoopback = ['localhost', '127.0.0.1', '[::1]'].includes(base.hostname);
@@ -777,27 +869,25 @@ ipcMain.handle('ai', async (e, { system, messages, model, extendedThinking, webS
           qwenMessages.push({ role: message.role, content });
         }
       }
+      reportProgress('status', { text: 'Qwen začíná odpovídat…' });
       const response = await fetch(new URL('/v1/chat/completions', base), {
         method: 'POST',
         headers: { 'content-type': 'application/json' },
-        signal: AbortSignal.timeout(180000),
+        signal: controller.signal,
         body: JSON.stringify({
           model: qwenModel,
           messages: qwenMessages,
-          stream: false,
-          max_tokens: extendedThinking ? 8192 : 4096
+          stream: true,
+          max_tokens: useQwenEconomy
+            ? (extendedThinking ? 2048 : 1536)
+            : (extendedThinking ? 8192 : 4096)
         })
       });
-      const result = await response.json();
-      if (!response.ok) {
-        const detail = typeof result.error === 'string' ? result.error : result.error && result.error.message;
-        return { error: `Lokální Qwen: ${detail || `HTTP ${response.status}`}. Zkontroluj, že je model načtený a server má zapnuté OpenAI-compatible API.` };
-      }
-      const answer = result.choices && result.choices[0] && result.choices[0].message
-        ? result.choices[0].message.content
-        : '';
+      const completion = await readOpenAICompatibleResponse(response, text => reportProgress('delta', { text }));
+      if (completion.error) return completion;
+      reportProgress('status', { text: 'Odpověď dokončena.' });
       return {
-        text: Array.isArray(answer) ? answer.map(part => part.text || '').join('\n') : answer || 'Qwen nevrátil textovou odpověď.',
+        text: completion.text,
         citations: []
       };
     }
@@ -815,6 +905,7 @@ ipcMain.handle('ai', async (e, { system, messages, model, extendedThinking, webS
       request.tools = [{ type: 'web_search_20250305', name: 'web_search', max_uses: 5 }];
     }
 
+    reportProgress('status', { text: 'Odesílám požadavek do AI…' });
     let response;
     for (let attempt = 0; attempt < 3; attempt++) {
       const r = await fetch('https://api.anthropic.com/v1/messages', {
@@ -824,7 +915,7 @@ ipcMain.handle('ai', async (e, { system, messages, model, extendedThinking, webS
           'anthropic-version': '2026-10-21',
           'content-type': 'application/json'
         },
-        signal: AbortSignal.timeout(180000),
+        signal: controller.signal,
         body: JSON.stringify(request)
       });
       const result = await r.json();
@@ -842,17 +933,33 @@ ipcMain.handle('ai', async (e, { system, messages, model, extendedThinking, webS
         }
       }
     }
+    const text = textBlocks.map(block => block.text || '').filter(Boolean).join('\n');
+    if (text) reportProgress('delta', { text });
+    reportProgress('status', { text: 'Odpověď dokončena.' });
     return {
-      text: textBlocks.map(block => block.text || '').filter(Boolean).join('\n'),
+      text,
       citations
     };
   } catch (error) {
-    if (provider === 'qwen') {
-      if (error.name === 'TimeoutError' || error.name === 'AbortError') {
-        return { error: 'Qwen neodpověděl do 3 minut. Zkus menší model nebo kratší otázku; chat zůstává připravený.' };
+    if (controller.signal.aborted) {
+      if (timedOut) {
+        reportProgress('status', { text: 'Požadavek vypršel.' });
+        return {
+          timeout: true,
+          error: provider === 'qwen'
+            ? 'Qwen pracoval déle než 15 minut. Zkrať zadání, nebo vypni úsporný režim pro plný kontext.'
+            : 'Požadavek vypršel po 3 minutách.'
+        };
       }
+      reportProgress('status', { text: 'Požadavek zastaven.' });
+      return { cancelled: true };
+    }
+    if (provider === 'qwen') {
       return { error: `Nelze dokončit požadavek Qwen: ${error.message || error}. Zkontroluj, že je model načtený a místní server běží.` };
     }
     return { error: String(error.message || error) };
+  } finally {
+    clearTimeout(timeoutId);
+    if (aiRequests.get(e.sender.id) === controller) aiRequests.delete(e.sender.id);
   }
 });

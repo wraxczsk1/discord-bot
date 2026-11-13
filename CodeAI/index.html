@@ -50,7 +50,7 @@
       user-select: none;
     }
     .brand { display: flex; flex: 0 0 auto; align-items: center; gap: 8px; color: var(--fg); }
-    .brand-mark { display: grid; inline-size: 23px; block-size: 23px; place-items: center; border: 1px solid #3b82f6; border-radius: 6px; background: linear-gradient(145deg, #133d68, #202735); color: #a7d7ff; }
+    .brand-mark { display: grid; inline-size: 23px; block-size: 23px; place-items: center; border: 1px solid #58a6ff; border-radius: 7px; background: radial-gradient(circle at 30% 20%, #245a8a, #111b2b 70%); color: #c8e6ff; box-shadow: inset 0 0 12px #58a6ff33, 0 0 10px #1f6feb22; }
     .brand-mark .icon { inline-size: 16px; block-size: 16px; }
     .menubar { display: flex; align-items: center; gap: 1px; }
     .menubar button { padding: 3px 6px; border: 0; border-radius: 3px; background: none; color: var(--fg); font-size: 12px; cursor: pointer; }
@@ -197,6 +197,16 @@
     #connection-alert { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin: 0 10px 8px; padding: 8px; border: 1px solid #805b27; border-radius: 4px; background: #352a1b; color: #f0d7a8; font-size: 11px; }
     #connection-alert[hidden] { display: none; }
     #connection-alert .button { flex: 0 0 auto; }
+    #ai-progress { flex: 0 0 auto; max-block-size: 150px; overflow: auto; padding: 8px 12px; border-block-end: 1px solid var(--line); background: var(--raised); }
+    #ai-progress[hidden] { display: none; }
+    .ai-progress-head { display: flex; align-items: center; gap: 7px; color: var(--fg); font-size: 11px; }
+    .ai-progress-indicator { inline-size: 9px; block-size: 9px; flex: 0 0 auto; border: 2px solid #526275; border-block-start-color: var(--accent); border-radius: 50%; }
+    #ai-progress[data-busy="true"] .ai-progress-indicator { animation: spin .8s linear infinite; }
+    #ai-progress-status { flex: 1; }
+    #ai-progress-close { min-block-size: 20px; padding: 0 5px; font-size: 12px; }
+    #ai-todo-list { display: grid; gap: 3px; margin: 6px 0 0 19px; padding: 0; color: var(--muted); font-size: 11px; }
+    #ai-todo-list li.active { color: var(--accent); }
+    #ai-todo-list li.done { color: #80c78b; }
     #msgs { flex: 1; overflow: auto; padding: 8px 12px; }
     .message {
       margin: 8px 0 14px;
@@ -298,6 +308,8 @@
     .dialog-body label { display: grid; gap: 4px; color: var(--muted); }
     .dialog-body input, .dialog-body select { padding: 7px; border: 1px solid var(--line); border-radius: 3px; background: var(--raised); color: var(--fg); }
     .dialog-body select[multiple] { min-block-size: 124px; }
+    #qwen-economy-row { display: flex; align-items: center; gap: 8px; }
+    #qwen-economy-row input { inline-size: auto; }
     .setup-steps { margin: 0; padding-inline-start: 22px; color: var(--muted); }
     .setup-steps li { margin-block: 6px; }
     .setup-links { display: flex; flex-wrap: wrap; gap: 7px; }
@@ -415,7 +427,7 @@
 </head>
 <body>
   <svg aria-hidden="true" style="position:absolute;inline-size:0;block-size:0;overflow:hidden">
-    <symbol id="i-logo" viewBox="0 0 24 24"><path d="M12 2.8 20.5 7.7v8.6L12 21.2l-8.5-4.9V7.7z"/><path d="m8 9 2.4 3L8 15m4 0h4"/><circle cx="16.5" cy="8" r="1"/></symbol>
+    <symbol id="i-logo" viewBox="0 0 24 24"><path d="M12 2.5 20.4 7.3v9.4L12 21.5l-8.4-4.8V7.3z"/><path d="m9 8.8-3.1 3.2L9 15.2m6-6.4 3.1 3.2-3.1 3.2M12.1 15.4l1.8-4.1"/><path d="m14.1 7.1.5-1.2.5 1.2 1.2.5-1.2.5-.5 1.2-.5-1.2-1.2-.5z"/></symbol>
     <symbol id="i-explorer" viewBox="0 0 24 24"><path d="M3 5.5h7l2 2h9v12H3z"/><path d="M3 9h18"/></symbol>
     <symbol id="i-search" viewBox="0 0 24 24"><circle cx="10.8" cy="10.8" r="6.8"/><path d="m16 16 5 5"/></symbol>
     <symbol id="i-git" viewBox="0 0 24 24"><path d="m12 3 9 9-9 9-9-9z"/><path d="M12 7v10M8.5 9.5h7"/></symbol>
@@ -547,6 +559,10 @@
       </div>
       <div class="chat-tools"><select id="chat-select" aria-label="Uložené chaty"></select></div>
       <div id="connection-alert" hidden><span id="connection-alert-text">Lokální Qwen není připojen.</span><button class="button" id="open-qwen-setup">Nastavit AI</button></div>
+      <section id="ai-progress" hidden aria-live="polite">
+        <div class="ai-progress-head"><span class="ai-progress-indicator"></span><strong id="ai-progress-status">AI připravuje odpověď…</strong><button class="button" id="ai-progress-close" title="Skrýt průběh">×</button></div>
+        <ol id="ai-todo-list"></ol>
+      </section>
       <div id="msgs" aria-live="polite"></div>
       <div class="quick-actions">
         <button class="button" data-p="Vysvětli aktuální soubor nebo vybraný kód. Uveď nejasnosti a konkrétní příklady.">Vysvětli</button>
@@ -566,6 +582,7 @@
             <button class="button" id="attach-folder" title="Připojit složku"><svg class="icon" style="display:inline-block;vertical-align:middle"><use href="#i-folder"/></svg> Složka</button>
             <button class="button" id="attach-link" title="Připojit odkaz"><svg class="icon" style="display:inline-block;vertical-align:middle"><use href="#i-link"/></svg> Odkaz</button>
             <button class="button primary" id="go"><svg class="icon" style="display:inline-block;vertical-align:middle"><use href="#i-send"/></svg> <span id="go-label">Odeslat</span></button>
+            <button class="button" id="stop-ai" hidden>■ Zastavit AI</button>
           </div>
         </div>
         <div id="settings">
@@ -580,6 +597,11 @@
             <option value="python">Python vývojář</option>
             <option value="java">Java vývojář</option>
             <option value="security">Bezpečnostní kontrola</option>
+            <option value="performance">Optimalizace výkonu</option>
+            <option value="devops">DevOps a sestavení</option>
+            <option value="designer">UI / UX návrhář</option>
+            <option value="database">Databáze a API</option>
+            <option value="documentation">Technický spisovatel</option>
           </select>
           <label for="model">Model</label>
           <select id="model" title="Model se ověřuje podle dostupnosti ve vašem Anthropic účtu">
@@ -605,6 +627,7 @@
       </label>
       <label id="qwen-url-row">Lokální Qwen server<input id="qwen-url" value="http://127.0.0.1:1234" placeholder="http://127.0.0.1:1234"></label>
       <label id="qwen-model-row">ID modelu Qwen<input id="qwen-model" placeholder="Automaticky z lokálního serveru"></label>
+      <label class="thinking" id="qwen-economy-row"><input id="qwen-economy" type="checkbox" checked> Šetrný režim Qwen (nižší zátěž PC)</label>
       <div class="setup-links">
         <button class="button" id="qwen-download">Stáhnout LM Studio</button>
         <button class="button" id="qwen-model-library">Najít Qwen model</button>
@@ -632,9 +655,15 @@
           <option value="docs">Dokumentace a vysvětlení</option>
           <option value="python">Python</option>
           <option value="java">Java, Gradle a Minecraft modding</option>
+          <option value="performance">Výkon, paměť a CPU</option>
+          <option value="accessibility">Přístupnost a ovládání klávesnicí</option>
+          <option value="api">API a datové kontrakty</option>
+          <option value="minecraft">Minecraft pluginy, mody a resource packy</option>
+          <option value="dependencies">Závislosti a sestavení</option>
+          <option value="file-names">Cesty a názvy generovaných souborů</option>
         </select>
       </label>
-      <div class="side-description">Qwen běží lokálně. Stáhni aplikaci LM Studio, stáhni v ní Qwen model a v záložce Developer spusť Local Server na adrese uvedené výše. Podrobný postup otevře tlačítko „Nastavit AI“ u chatu.</div>
+      <div class="side-description">Šetrný režim zkrátí historii a obrázky a ve Windows sníží prioritu místního Qwen serveru, aby počítač mohl obsluhovat ostatní aplikace. Qwen může odpovídat až 15 minut; běh lze zastavit tlačítkem v chatu. Pokud server prioritu nepodporuje nebo PC stále nestíhá, sniž jeho CPU vlákna v LM Studio nebo použij menší model.</div>
       <div class="update-note">
         <strong>Code AI · verze <span id="app-version">načítám…</span></strong>
         <div>Instalátor pro Windows vytvoříš příkazem <code>npm run dist</code>.</div>
@@ -713,7 +742,12 @@
       mod: 'Jsi zkušený vývojář Java a herních modů. Nejdřív zjisti hru, verzi Java, loader a API modů; nevymýšlej kompatibilitu. Navrhuj zdrojové soubory a reprodukovatelný Gradle/Maven build.',
       python: 'Jsi zkušený Python vývojář. Preferuj jasné typy, standardní knihovnu, bezpečnou práci se soubory a reprodukovatelné testy.',
       java: 'Jsi zkušený Java vývojář. Zohledni cílovou verzi JDK, sestavení Maven/Gradle a uváděj konkrétní kroky ověření.',
-      security: 'Jsi bezpečnostně zaměřený vývojář. Hledej obvyklé chyby v kódu a navrhuj obranné opravy; nepředstírej, že kontrola nahrazuje profesionální audit.'
+      security: 'Jsi bezpečnostně zaměřený vývojář. Hledej obvyklé chyby v kódu a navrhuj obranné opravy; nepředstírej, že kontrola nahrazuje profesionální audit.',
+      performance: 'Jsi inženýr výkonu. Hledej měřitelná úzká místa CPU, paměti, renderování a I/O; navrhuj malé změny a ověř jejich dopad místo předčasné optimalizace.',
+      devops: 'Jsi DevOps inženýr. Zaměř se na reprodukovatelné buildy, spouštění, logování a nasazení; neodhaluj tajné údaje a ověř příkazy v cílovém prostředí.',
+      designer: 'Jsi UI/UX návrhář a frontend vývojář. Navrhuj konzistentní rozhraní s jasnou hierarchií, přístupností a responzivním chováním; respektuj existující designový systém.',
+      database: 'Jsi inženýr API a databází. Dbej na konzistentní datové kontrakty, validaci, migrace a transakce; nepředpokládej schéma bez ověření.',
+      documentation: 'Jsi technický spisovatel. Piš jasné návody pro uživatele i vývojáře, uváděj předpoklady, přesné příkazy a známá omezení.'
     };
     const agentSkills = {
       debug: 'Při řešení chyby odděl příznak od příčiny a navrhni ověřitelný postup reprodukce.',
@@ -722,7 +756,13 @@
       security: 'Chraň tajné údaje, validuj vstupy a upozorni na rizika hranic důvěry.',
       docs: 'Doplň stručný návod pro uživatele a vysvětli důležité předpoklady.',
       python: 'Používej idiomatický Python a uváděj verzi Pythonu i příkaz pro ověření.',
-      java: 'Uveď požadavky na JDK, build nástroje a verze API; kompatibilitu ověřuj, neodhaduj.'
+      java: 'Uveď požadavky na JDK, build nástroje a verze API; kompatibilitu ověřuj, neodhaduj.',
+      performance: 'Omez zbytečné alokace, kontext, síťové a diskové operace; před závěrem popiš, jak výkon změřit.',
+      accessibility: 'Zajisti popisky, kontrast, fokus, ovládání klávesnicí a sémantické HTML; neodstraňuj přístupnost kvůli vzhledu.',
+      api: 'Definuj vstupy, výstupy, chybové stavy a kompatibilitu API; nikdy nepotlačuj validační chyby.',
+      minecraft: 'Nejdřív identifikuj verzi Minecraftu, loader/API a JDK; pro artefakty uváděj relativní cestu a ověřitelný build.',
+      dependencies: 'Zkontroluj existující build systém a verze závislostí; neupgraduj nesouvisející balíčky a uveď příkaz pro ověření.',
+      'file-names': 'Každý nový nebo celý generovaný soubor pojmenuj přesnou relativní cestou v nadpisu před jeho samostatným blokem kódu.'
     };
     function getSavedSkills() {
       try {
@@ -743,6 +783,7 @@
     $('provider-select').value = localStorage.getItem('provider') || 'qwen';
     $('qwen-url').value = localStorage.getItem('qwenUrl') || 'http://127.0.0.1:1234';
     $('qwen-model').value = localStorage.getItem('qwenModel') || '';
+    $('qwen-economy').checked = localStorage.getItem('qwenEconomy') !== 'false';
     $('agent-profile').value = localStorage.getItem('agentProfile') || 'developer';
     const savedSkills = getSavedSkills();
     [...$('agent-skills').options].forEach(option => { option.selected = savedSkills.includes(option.value); });
@@ -1115,6 +1156,26 @@
       if (shouldScroll !== false) $('msgs').scrollTop = $('msgs').scrollHeight;
     }
 
+    function inferGeneratedFilePath(beforeBlock, infoLine) {
+      const extensionByLanguage = {
+        javascript: 'js', js: 'js', typescript: 'ts', ts: 'ts', tsx: 'tsx', jsx: 'jsx',
+        python: 'py', py: 'py', java: 'java', kotlin: 'kt', groovy: 'groovy',
+        gradle: 'gradle', yaml: 'yml', yml: 'yml', json: 'json', html: 'html',
+        css: 'css', scss: 'scss', markdown: 'md', md: 'md', xml: 'xml',
+        properties: 'properties', toml: 'toml', shell: 'sh', bash: 'sh',
+        bat: 'bat', powershell: 'ps1', sql: 'sql', csharp: 'cs', cs: 'cs',
+        go: 'go', rust: 'rs', php: 'php', ruby: 'rb', text: 'txt', txt: 'txt'
+      };
+      const language = infoLine.trim().split(/\s+/)[0].toLowerCase();
+      const extension = extensionByLanguage[language] || 'txt';
+      const text = `${beforeBlock}\n${infoLine}`.slice(-1500);
+      const matches = [...text.matchAll(/(?:^|[\s`"'([{*])((?:[A-Za-z0-9_.-]+[\\/])*[A-Za-z0-9_.-]+\.(?:yml|yaml|json|java|kt|kts|groovy|gradle|xml|properties|toml|js|cjs|mjs|ts|tsx|jsx|py|html|css|scss|md|txt|sh|bat|ps1|sql|cs|go|rs|php|rb|mcmeta|cfg|conf))(?=$|[\s`"'*():,;])/gim)];
+      const match = matches[matches.length - 1];
+      return match
+        ? match[1].replace(/\\/g, '/').replace(/^\.\//, '')
+        : `ai-output.${extension}`;
+    }
+
     function renderText(element, text) {
       const chunks = text.split('```');
       chunks.forEach((chunk, index) => {
@@ -1126,8 +1187,10 @@
           }
           return;
         }
-        const language = (chunk.match(/^([^\n]*)\n/) || [])[1] || '';
+        const infoLine = (chunk.match(/^([^\n]*)\n/) || [])[1] || '';
+        const language = infoLine.trim().split(/\s+/)[0].toLowerCase();
         const code = chunk.replace(/^[^\n]*\n/, '').replace(/\n$/, '');
+        const generatedFilePath = inferGeneratedFilePath(chunks[index - 1] || '', infoLine);
         const block = document.createElement('div');
         block.className = 'code-block';
         const pre = document.createElement('pre');
@@ -1146,6 +1209,7 @@
         const insert = document.createElement('button');
         insert.className = 'button primary';
         insert.textContent = 'Vložit do složky';
+        insert.title = `Uložit jako ${generatedFilePath}`;
         const saveFeedback = document.createElement('span');
         saveFeedback.className = 'code-save-feedback';
         saveFeedback.setAttribute('role', 'status');
@@ -1155,19 +1219,19 @@
             setStatus(saveFeedback.textContent);
             return;
           }
-          const extension = ({ javascript: 'js', js: 'js', typescript: 'ts', ts: 'ts', python: 'py', py: 'py', json: 'json', html: 'html', css: 'css', markdown: 'md', md: 'md' })[language.trim().toLowerCase()] || 'txt';
           insert.disabled = true;
-          insert.textContent = 'Vyber umístění…';
-          saveFeedback.textContent = 'Otevírám dialog pro uložení do projektu…';
+          insert.textContent = 'Ukládám…';
+          saveFeedback.textContent = `Ukládám ${generatedFilePath} do projektu…`;
           try {
-            const result = await api.saveProjectFile(selectedDirectory || root, `ai-output.${extension}`, code);
+            const basePath = generatedFilePath.includes('/') ? root : (selectedDirectory || root);
+            const result = await api.saveProjectFile(basePath, generatedFilePath, code);
             if (!result) {
-              saveFeedback.textContent = 'Uložení zrušeno.';
+              saveFeedback.textContent = 'Uložení bylo zrušeno.';
               return;
             }
             await refreshTree();
             await openFile({ path: result.path, name: result.name, dir: false });
-            saveFeedback.textContent = `Uloženo do projektu: ${result.name}`;
+            saveFeedback.textContent = `Uloženo do projektu: ${result.relativePath}`;
             setStatus(saveFeedback.textContent);
           } catch (error) {
             saveFeedback.textContent = `Uložení selhalo: ${error.message}`;
@@ -1281,6 +1345,7 @@
       $('new-chat').disabled = busy;
       $('delete-chat').disabled = busy;
       $('clear-chat').disabled = busy;
+      $('stop-ai').hidden = !busy;
       document.querySelectorAll('.edit-user-message').forEach(button => { button.disabled = busy; });
     }
 
@@ -1607,6 +1672,74 @@
       $('msgs').appendChild(response);
       $('msgs').scrollTop = $('msgs').scrollHeight;
       setStatus('AI připravuje odpověď…');
+      const requestId = crypto.randomUUID ? crypto.randomUUID() : `${Date.now()}-${Math.random()}`;
+      const progressPanel = $('ai-progress');
+      const progressList = $('ai-todo-list');
+      const progressItems = [];
+      let streamedText = '';
+      let handledMarkers = 0;
+      let streamRenderPending = false;
+      progressPanel.hidden = false;
+      progressPanel.dataset.busy = 'true';
+      $('ai-progress-status').textContent = 'Připravuji požadavek…';
+      progressList.textContent = '';
+      const renderProgressItems = () => {
+        progressList.textContent = '';
+        progressItems.forEach(item => {
+          const row = document.createElement('li');
+          row.className = item.done ? 'done' : item.active ? 'active' : '';
+          row.textContent = `${item.done ? '✓' : item.active ? '●' : '○'} ${item.text}`;
+          progressList.appendChild(row);
+        });
+      };
+      const updateProgressMarkers = () => {
+        const markers = [...streamedText.matchAll(/\[\[(TODO|DOING|DONE):\s*([^\]\r\n]+)\]\]/gi)];
+        while (handledMarkers < markers.length) {
+          const [, action, rawTask] = markers[handledMarkers++];
+          const task = rawTask.trim();
+          let item = progressItems.find(entry => entry.text.toLowerCase() === task.toLowerCase());
+          if (!item) {
+            item = { text: task, active: false, done: false };
+            progressItems.push(item);
+          }
+          if (action.toUpperCase() === 'DOING') {
+            progressItems.forEach(entry => { entry.active = false; });
+            item.active = true;
+            $('ai-progress-status').textContent = task;
+          } else if (action.toUpperCase() === 'DONE') {
+            item.active = false;
+            item.done = true;
+            $('ai-progress-status').textContent = `Hotovo: ${task}`;
+          }
+          renderProgressItems();
+        }
+      };
+      const unsubscribeProgress = typeof api.onAIProgress === 'function'
+        ? api.onAIProgress(event => {
+          if (!event || event.requestId !== requestId) return;
+          if (event.type === 'status') {
+            $('ai-progress-status').textContent = event.text || 'AI pracuje…';
+          } else if (event.type === 'delta' && typeof event.text === 'string') {
+            streamedText += event.text;
+            updateProgressMarkers();
+            if (!progressItems.some(item => item.active)) $('ai-progress-status').textContent = 'AI generuje odpověď…';
+            if (!streamRenderPending) {
+              streamRenderPending = true;
+              requestAnimationFrame(() => {
+                streamRenderPending = false;
+                let visibleText = streamedText.replace(/\[\[(?:TODO|DOING|DONE):\s*[^\]\r\n]+\]\]\s*/gi, '');
+                const partialMarker = visibleText.lastIndexOf('[[');
+                if (partialMarker >= 0 && !visibleText.slice(partialMarker).includes(']]')) {
+                  visibleText = visibleText.slice(0, partialMarker);
+                }
+                response.textContent = visibleText;
+                const nearBottom = $('msgs').scrollHeight - $('msgs').scrollTop - $('msgs').clientHeight < 80;
+                if (nearBottom) $('msgs').scrollTop = $('msgs').scrollHeight;
+              });
+            }
+          }
+        })
+        : () => {};
       const messages = activeChat.messages.slice(-10).map(message => ({
         role: message.role,
         content: message.content,
@@ -1624,46 +1757,68 @@
         const projectEditInstruction = options && options.projectEdit
           ? '\n\nUživatel žádá o skutečné úpravy projektu. Vrať pouze validní JSON bez markdownu v přesném tvaru {"changes":[{"path":"relativni/cesta","content":"celý nový obsah"}]}. Cesty musí být relativní k otevřené složce. Vypiš pouze soubory, které je nutné změnit, nevymýšlej nezjištěný obsah souborů a zachovej jejich stávající chování. Neprováděj destruktivní změny ani neměň konfigurační soubory s klíči nebo tajnými údaji. Pokud nelze bezpečný návrh vytvořit, vrať {"changes":[]} a důvod uveď v textovém poli content první položky pouze tehdy, pokud existuje bezpečná změna.'
           : '';
+        const progressInstruction = options && options.projectEdit
+          ? ''
+          : '\n\nU vícekrokové práce začni nejvýše pěti značkami [[TODO: stručný krok]]. Před krokem vypiš [[DOING: stručný krok]] a po jeho dokončení [[DONE: stručný krok]], každou značku na samostatný řádek. U jednoduchých otázek značky vynech.';
+        const provider = localStorage.getItem('provider') || 'qwen';
+        const qwenUrl = localStorage.getItem('qwenUrl') || 'http://127.0.0.1:1234';
+        if (provider === 'qwen') {
+          const priority = await api.setQwenPriority(qwenUrl, $('qwen-economy').checked);
+          setStatus(priority.message);
+        }
         const result = await api.ai({
-          system: `${agentPrompt}\n\nJsi pečlivý programátorský asistent integrovaný do lokálního IDE. Odpovídej česky, používej poskytnutý kontext projektu a příloh. Uvažuj důkladně, ověř předpoklady, přiznej nejistotu a nevymýšlej si obsah souborů. Pokud je zapnuté webové vyhledávání a dotaz se týká aktuálních nebo ověřitelných faktů, hledej důvěryhodné zdroje, cituj je a rozlišuj doložená fakta od odhadů. Bez zdrojů netvrď, že je něco ověřené. Nabízej konkrétní bezpečné kroky; kód vkládej do bloků \`\`\`jazyk. Celý soubor vypisuj jen tehdy, když si o něj uživatel řekne nebo je to potřebné.${skillsPrompt}${projectEditInstruction}`,
+          requestId,
+          system: `${agentPrompt}\n\nJsi pečlivý programátorský asistent integrovaný do lokálního IDE. Odpovídej česky, používej poskytnutý kontext projektu a příloh. Uvažuj důkladně, ověř předpoklady, přiznej nejistotu a nevymýšlej si obsah souborů. Pokud je zapnuté webové vyhledávání a dotaz se týká aktuálních nebo ověřitelných faktů, hledej důvěryhodné zdroje, cituj je a rozlišuj doložená fakta od odhadů. Bez zdrojů netvrď, že je něco ověřené. Nabízej konkrétní bezpečné kroky; kód vkládej do bloků \`\`\`jazyk. Pokud navrhuješ nový nebo kompletní soubor, napiš před jeho blokem přesnou relativní cestu, například \`src/main/resources/config.yml\`, a každý soubor vlož do samostatného bloku. Celý soubor vypisuj jen tehdy, když si o něj uživatel řekne nebo je to potřebné.${skillsPrompt}${progressInstruction}${projectEditInstruction}`,
           messages,
           model: (localStorage.getItem('provider') || 'qwen') === 'qwen'
             ? localStorage.getItem('qwenModel') || $('qwen-model').value
             : $('model').value,
           extendedThinking: $('thinking').checked,
           webSearch: $('web-search').checked,
-          provider: localStorage.getItem('provider') || 'qwen',
-          qwenUrl: localStorage.getItem('qwenUrl') || 'http://127.0.0.1:1234',
+          provider,
+          qwenUrl,
+          qwenEconomy: $('qwen-economy').checked,
           agentProfile: $('agent-profile').value
         });
-        if (result.error) {
+        if (result.cancelled) {
+          response.textContent = '■ Požadavek zastaven.';
+          $('ai-progress-status').textContent = 'Generování zastaveno.';
+          setStatus('AI byla zastavena.');
+        } else if (result.error) {
           response.textContent = `⚠ ${result.error}`;
-          setStatus('Požadavek se nepodařilo dokončit');
-          if ((localStorage.getItem('provider') || 'qwen') === 'qwen') {
+          $('ai-progress-status').textContent = result.error;
+          setStatus(result.timeout ? result.error : 'Požadavek se nepodařilo dokončit');
+          if (!result.timeout && (localStorage.getItem('provider') || 'qwen') === 'qwen') {
             showQwenAlert('Chat se nepřipojil. Otevři nastavení Qwen, stáhni model a spusť Local Server.');
           }
         } else {
+          $('ai-progress-status').textContent = 'Hotovo.';
+          progressPanel.dataset.busy = 'false';
           response.remove();
+          const answerText = (result.text || '').replace(/\[\[(?:TODO|DOING|DONE):\s*[^\]\r\n]+\]\]\s*/gi, '').trim();
           if (options && options.projectEdit) {
             try {
-              const changes = parseProjectChanges(result.text || '');
+              const changes = parseProjectChanges(answerText);
               if (!changes.length) throw new Error('Model nenavrhl žádné změny.');
               addMessage('assistant', `Připravil jsem návrh úprav pro ${changes.length} souborů. Zkontroluj obsah každého souboru před použitím.`, [], result.citations, changes);
               setStatus('Návrh připraven ke kontrole');
             } catch (error) {
-              addMessage('assistant', `Návrh změn se nepodařilo bezpečně přečíst: ${error.message}\n\nOdpověď modelu:\n${result.text || '(prázdná odpověď)'}`, [], result.citations);
+              addMessage('assistant', `Návrh změn se nepodařilo bezpečně přečíst: ${error.message}\n\nOdpověď modelu:\n${answerText || '(prázdná odpověď)'}`, [], result.citations);
               setStatus('AI nevrátila použitelný návrh změn');
             }
           } else {
-            addMessage('assistant', result.text || 'Model nevrátil textovou odpověď.', [], result.citations);
+            addMessage('assistant', answerText || 'Model nevrátil textovou odpověď.', [], result.citations);
             setStatus('Připraveno');
           }
           await persistChat();
         }
       } catch (error) {
         response.textContent = `⚠ ${error.message}`;
+        $('ai-progress-status').textContent = error.message;
         setStatus(`Chyba: ${error.message}`);
       } finally {
+        unsubscribeProgress();
+        progressPanel.dataset.busy = 'false';
         finishChatRequest();
       }
     }
@@ -1678,6 +1833,7 @@
       const local = $('provider-select').value === 'qwen';
       $('qwen-url-row').hidden = !local;
       $('qwen-model-row').hidden = !local;
+      $('qwen-economy').disabled = !local;
       $('web-search').disabled = local;
       $('thinking').disabled = false;
       $('connection-alert').hidden = !local || !qwenUnavailable;
@@ -1863,6 +2019,7 @@
     $('profile-open').onclick = $('profile-activity').onclick = $('open-settings').onclick = openSettings;
     $('chat-close').onclick = () => setChatVisible(false);
     $('chat-open').onclick = () => setChatVisible($('main').classList.contains('chat-hidden'));
+    $('ai-progress-close').onclick = () => { $('ai-progress').hidden = true; };
     $('settings-close').onclick = $('settings-cancel').onclick = () => $('settings-dialog').close();
     $('changes-close').onclick = $('changes-cancel').onclick = () => {
       $('changes-dialog').close();
@@ -1906,6 +2063,7 @@
       localStorage.setItem('provider', provider);
       localStorage.setItem('qwenUrl', $('qwen-url').value.trim() || 'http://127.0.0.1:1234');
       localStorage.setItem('qwenModel', $('qwen-model').value.trim());
+      localStorage.setItem('qwenEconomy', String($('qwen-economy').checked));
       localStorage.setItem('agentSkills', JSON.stringify([...$('agent-skills').selectedOptions].map(option => option.value)));
       $('model').value = $('profile-model').value;
       if (ed) monaco.editor.setTheme(theme === 'light' ? 'vs' : 'vs-dark');
@@ -2049,6 +2207,13 @@
       } else {
         ask(value);
       }
+    };
+    $('stop-ai').onclick = () => {
+      if (!busy) return;
+      queuedChatRequests = [];
+      api.cancelAI();
+      setStatus('Zastavuji AI; čekající zprávy byly zrušeny.');
+      updateBusyControls();
     };
     $('q').onkeydown = event => {
       if (event.key === 'Enter' && !event.shiftKey) {
