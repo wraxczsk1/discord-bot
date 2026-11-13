@@ -202,23 +202,20 @@ ipcMain.handle('saveProjectFile', async (e, { parentPath, name, content }) => {
     throw new Error('Zadej platný název souboru bez oddělovačů cesty.');
   }
   if (typeof content !== 'string') throw new Error('Obsah souboru není platný text.');
-  const target = resolveWorkspacePath(e.sender, path.join(parent, fileName), true);
-  let overwritten = false;
+  const selection = await dialog.showSaveDialog(mainWindow, {
+    title: 'Uložit soubor do projektu',
+    buttonLabel: 'Uložit do projektu',
+    defaultPath: path.join(parent, fileName)
+  });
+  if (selection.canceled || !selection.filePath) return null;
+  const target = resolveWorkspacePath(e.sender, selection.filePath, true);
+  const targetParent = resolveWorkspacePath(e.sender, path.dirname(target), false);
+  if (!fs.statSync(targetParent).isDirectory()) throw new Error('Cílové umístění není složka projektu.');
   if (fs.existsSync(target)) {
     if (!fs.statSync(target).isFile()) throw new Error('Soubor se stejným názvem už existuje jako složka.');
-    const confirmation = await dialog.showMessageBox(mainWindow, {
-      type: 'warning',
-      buttons: ['Přepsat soubor', 'Zrušit'],
-      defaultId: 1,
-      cancelId: 1,
-      title: 'Soubor už existuje',
-      message: `Opravdu chceš přepsat soubor „${fileName}“?`
-    });
-    if (confirmation.response !== 0) return null;
-    overwritten = true;
   }
-  fs.writeFileSync(target, content, { encoding: 'utf8', flag: overwritten ? 'w' : 'wx' });
-  return { path: target, name: fileName };
+  fs.writeFileSync(target, content, { encoding: 'utf8', flag: 'w' });
+  return { path: target, name: path.basename(target) };
 });
 
 ipcMain.handle('openExternal', async (e, rawUrl) => {

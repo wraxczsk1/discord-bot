@@ -11,7 +11,7 @@ V nastavení lze vybrat specializovaného agenta a jednu nebo více dovedností 
 
 Chaty a jejich historie se ukládají lokálně do uživatelských dat aplikace. Chaty ani přiložené soubory se automaticky nemažou. V nastavení je možné změnit profil, model a barevné schéma.
 
-Odeslanou zprávu lze tlačítkem „Upravit“ změnit a znovu odeslat; starší odpovědi za ní se nahradí novým výsledkem. Kód z odpovědi AI lze tlačítkem „Vložit do složky“ uložit do právě vybrané složky otevřeného projektu. Při shodě názvu aplikace před přepsáním vyžádá potvrzení.
+Odeslanou zprávu lze tlačítkem „Upravit“ změnit a znovu odeslat; starší odpovědi za ní se nahradí novým výsledkem. Kód z odpovědi AI lze tlačítkem „Vložit do složky“ uložit do otevřeného projektu; zobrazí se dialog pro výběr názvu a umístění uvnitř projektu.
 
 Lze připojit až 5 souborů, složek, odkazů nebo ZIP archivů najednou. Soubory zůstávají na původním místě; do požadavku se načítá omezený textový výňatek, obrázky/PDF do 5 MB a celkem nejvýše 8 MB multimediálních dat. Z archivu ZIP nebo složky se načítá omezený výběr textových souborů. Webové vyhledávání používá Anthropic API a zobrazuje odkazy na zdroje, pokud je model vrátí. Pro spuštění aktuálního souboru je dostupný základní běh JavaScriptu přes Node.js a Pythonu přes `python`.
 

@@ -217,6 +217,7 @@
     .code-block { margin: 8px 0 2px; overflow: hidden; border: 1px solid #3c3c3c; border-radius: 4px; background: #161616; }
     .code-block pre { max-block-size: 320px; margin: 0; padding: 9px; overflow: auto; font: 12px/1.5 Consolas, monospace; }
     .code-block button { margin: 0 8px 8px; }
+    .code-save-feedback { display: block; min-block-size: 1em; margin: 0 8px 7px; color: var(--muted); font-size: 11px; }
     .quick-actions { display: flex; flex-wrap: wrap; gap: 5px; padding: 5px 10px 8px; border-block-start: 1px solid var(--line); }
     .button {
       min-block-size: 27px;
@@ -1145,25 +1146,38 @@
         const insert = document.createElement('button');
         insert.className = 'button primary';
         insert.textContent = 'Vložit do složky';
+        const saveFeedback = document.createElement('span');
+        saveFeedback.className = 'code-save-feedback';
+        saveFeedback.setAttribute('role', 'status');
         insert.onclick = async () => {
           if (!root) {
-            setStatus('Nejprve otevři složku projektu, do které chceš soubor uložit.');
+            saveFeedback.textContent = 'Nejprve otevři složku projektu.';
+            setStatus(saveFeedback.textContent);
             return;
           }
           const extension = ({ javascript: 'js', js: 'js', typescript: 'ts', ts: 'ts', python: 'py', py: 'py', json: 'json', html: 'html', css: 'css', markdown: 'md', md: 'md' })[language.trim().toLowerCase()] || 'txt';
-          const name = prompt('Název souboru v otevřeném projektu:', `ai-output.${extension}`);
-          if (!name || !name.trim()) return;
+          insert.disabled = true;
+          insert.textContent = 'Vyber umístění…';
+          saveFeedback.textContent = 'Otevírám dialog pro uložení do projektu…';
           try {
-            const result = await api.saveProjectFile(selectedDirectory || root, name.trim(), code);
-            if (!result) return;
+            const result = await api.saveProjectFile(selectedDirectory || root, `ai-output.${extension}`, code);
+            if (!result) {
+              saveFeedback.textContent = 'Uložení zrušeno.';
+              return;
+            }
             await refreshTree();
             await openFile({ path: result.path, name: result.name, dir: false });
-            setStatus(`Soubor uložen do projektu: ${result.name}`);
+            saveFeedback.textContent = `Uloženo do projektu: ${result.name}`;
+            setStatus(saveFeedback.textContent);
           } catch (error) {
-            setStatus(`Soubor se nepodařilo uložit do projektu: ${error.message}`);
+            saveFeedback.textContent = `Uložení selhalo: ${error.message}`;
+            setStatus(saveFeedback.textContent);
+          } finally {
+            insert.disabled = false;
+            insert.textContent = 'Vložit do složky';
           }
         };
-        block.append(pre, save, insert);
+        block.append(pre, save, insert, saveFeedback);
         element.appendChild(block);
       });
     }
