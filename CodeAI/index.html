@@ -716,6 +716,7 @@
     let ed;
     let root = null;
     let selectedDirectory = null;
+    const expandedDirectories = new Set();
     let opened = [];
     let currentFile = null;
     let chats = [];
@@ -857,17 +858,23 @@
         element.appendChild(row);
         if (item.dir) {
           let children = null;
+          const expand = async () => {
+            children = document.createElement('div');
+            row.after(children);
+            row.textContent = `▾ ${item.name}`;
+            await renderTree(children, item.path, depth + 1);
+          };
+          if (expandedDirectories.has(item.path)) await expand();
           row.onclick = async () => {
             selectedDirectory = item.path;
-            if (children) {
+            if (expandedDirectories.has(item.path)) {
+              expandedDirectories.delete(item.path);
               children.remove();
               children = null;
               row.textContent = `▸ ${item.name}`;
             } else {
-              children = document.createElement('div');
-              row.after(children);
-              row.textContent = `▾ ${item.name}`;
-              await renderTree(children, item.path, depth + 1);
+              expandedDirectories.add(item.path);
+              await expand();
             }
           };
         } else {
@@ -890,6 +897,7 @@
       if (!directory) return;
       root = directory;
       selectedDirectory = directory;
+      expandedDirectories.clear();
       $('side-title').textContent = directory.split(/[\\/]/).pop().toUpperCase();
       $('tree').textContent = '';
       await renderTree($('tree'), directory, 0);
@@ -901,6 +909,19 @@
       if (!root) return;
       $('tree').textContent = '';
       await renderTree($('tree'), root, 0);
+    }
+
+    function expandParentDirectories(filePath) {
+      let directory = filePath.slice(0, Math.max(filePath.lastIndexOf('\\'), filePath.lastIndexOf('/')));
+      const normalizedRoot = root.replace(/[\\/]+$/, '');
+      const normalizedRootLower = normalizedRoot.toLowerCase();
+      const rootPrefix = `${normalizedRoot}${root.includes('\\') ? '\\' : '/'}`.toLowerCase();
+      while (directory && directory.replace(/[\\/]+$/, '').toLowerCase() !== normalizedRootLower &&
+             directory.toLowerCase().startsWith(rootPrefix)) {
+        expandedDirectories.add(directory);
+        const separator = Math.max(directory.lastIndexOf('\\'), directory.lastIndexOf('/'));
+        directory = separator > normalizedRoot.length ? directory.slice(0, separator) : root;
+      }
     }
 
     async function createProjectEntry(isDirectory) {
@@ -1223,12 +1244,14 @@
           insert.textContent = 'Ukládám…';
           saveFeedback.textContent = `Ukládám ${generatedFilePath} do projektu…`;
           try {
-            const basePath = generatedFilePath.includes('/') ? root : (selectedDirectory || root);
-            const result = await api.saveProjectFile(basePath, generatedFilePath, code);
+            const relativePath = generatedFilePath.replace(/\\/g, '/');
+            const basePath = relativePath.includes('/') ? root : (selectedDirectory || root);
+            const result = await api.saveProjectFile(basePath, relativePath, code);
             if (!result) {
               saveFeedback.textContent = 'Uložení bylo zrušeno.';
               return;
             }
+            expandParentDirectories(result.path);
             await refreshTree();
             await openFile({ path: result.path, name: result.name, dir: false });
             saveFeedback.textContent = `Uloženo do projektu: ${result.relativePath}`;

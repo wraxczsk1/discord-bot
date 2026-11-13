@@ -5,6 +5,7 @@ const yauzl = require('yauzl');
 const { spawn, spawnSync, execFile } = require('child_process');
 const { mergeConsecutiveMessages } = require('./chat-utils');
 const { readOpenAICompatibleResponse } = require('./ai-stream');
+const { saveProjectFile } = require('./project-files');
 const { randomUUID } = require('crypto');
 const { autoUpdater } = require('electron-updater');
 
@@ -204,32 +205,8 @@ ipcMain.handle('saveGeneratedFile', async (e, { name, content }) => {
 });
 
 ipcMain.handle('saveProjectFile', async (e, { parentPath, name, content }) => {
-  const parent = resolveWorkspacePath(e.sender, parentPath, false);
-  if (!fs.statSync(parent).isDirectory()) throw new Error('Vybraná cesta není složka.');
-  const relativePath = String(name || '').trim().replace(/\\/g, '/');
-  const segments = relativePath.split('/');
-  if (!relativePath || path.isAbsolute(relativePath) ||
-      segments.some(segment => !segment || segment === '.' || segment === '..' || /[<>:"|?*\x00-\x1f]/.test(segment))) {
-    throw new Error('AI navrhla neplatnou cestu k souboru.');
-  }
-  if (typeof content !== 'string') throw new Error('Obsah souboru není platný text.');
-  let targetParent = parent;
-  for (const directoryName of segments.slice(0, -1)) {
-    const directoryPath = path.resolve(targetParent, directoryName);
-    if (!pathIsWithin(workspaceRoots.get(e.sender.id), directoryPath)) {
-      throw new Error('Cílová složka musí zůstat uvnitř otevřeného projektu.');
-    }
-    if (!fs.existsSync(directoryPath)) fs.mkdirSync(directoryPath);
-    targetParent = resolveWorkspacePath(e.sender, directoryPath, false);
-    if (!fs.statSync(targetParent).isDirectory()) {
-      throw new Error(`Cílová cesta „${directoryName}“ není složka.`);
-    }
-  }
-  const fileName = segments[segments.length - 1];
-  const target = resolveWorkspacePath(e.sender, path.join(targetParent, fileName), true);
-  let overwrite = false;
-  if (fs.existsSync(target)) {
-    if (!fs.statSync(target).isFile()) throw new Error('Soubor se stejným názvem už existuje jako složka.');
+  const root = workspaceRoots.get(e.sender.id);
+  return saveProjectFile(root, parentPath, name, content, async relativePath => {
     const confirmation = await dialog.showMessageBox(mainWindow, {
       type: 'warning',
       buttons: ['Přepsat soubor', 'Zrušit'],
@@ -238,15 +215,8 @@ ipcMain.handle('saveProjectFile', async (e, { parentPath, name, content }) => {
       title: 'Soubor už existuje',
       message: `AI chce uložit „${relativePath}“, ale soubor už existuje. Přepsat ho?`
     });
-    if (confirmation.response !== 0) return null;
-    overwrite = true;
-  }
-  fs.writeFileSync(target, content, { encoding: 'utf8', flag: overwrite ? 'w' : 'wx' });
-  return {
-    path: target,
-    name: path.basename(target),
-    relativePath: path.relative(parent, target).split(path.sep).join('/')
-  };
+    return confirmation.response === 0;
+  });
 });
 
 ipcMain.handle('openExternal', async (e, rawUrl) => {

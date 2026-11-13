@@ -1,6 +1,6 @@
 {
   "name": "code-ai",
-  "version": "1.0.3",
+  "version": "1.0.4",
   "description": "Vlastní programátorské IDE s AI",
   "main": "main.js",
   "scripts": {
